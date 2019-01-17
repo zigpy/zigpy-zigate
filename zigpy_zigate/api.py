@@ -8,7 +8,8 @@ class ZiGate:
     def __init__(self):
         self._zigate = None
 
-    async def connect(self, device, baudrate=115200):
+    def connect(self, device, baudrate=115200):
+        assert self._zigate is None
         if '.' in device:  # supposed I.P:PORT
             host_port = device.split(':', 1)
             host = host_port[0]
