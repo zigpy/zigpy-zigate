@@ -1,11 +1,8 @@
 import asyncio
-import binascii
 import logging
-import os
 
 from zigpy.exceptions import DeliveryError
 import zigpy.application
-import zigpy.device
 import zigpy.util
 
 
@@ -57,19 +54,19 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #         except KeyError:
 #             LOGGER.debug("No such device %s", sender)
 #             return
-# 
+#
 #         device.radio_details(lqi, rssi)
 #         try:
 #             tsn, command_id, is_reply, args = self.deserialize(device, aps_frame.sourceEndpoint, aps_frame.clusterId, message)
 #         except ValueError as e:
 #             LOGGER.error("Failed to parse message (%s) on cluster %d, because %s", binascii.hexlify(message), aps_frame.clusterId, e)
 #             return
-# 
+#
 #         if is_reply:
 #             self._handle_reply(device, aps_frame, tsn, command_id, args)
 #         else:
 #             self.handle_message(device, False, aps_frame.profileId, aps_frame.clusterId, aps_frame.sourceEndpoint, aps_frame.destinationEndpoint, tsn, command_id, args)
-# 
+#
 #     def _handle_reply(self, sender, aps_frame, tsn, command_id, args):
 #         try:
 #             send_fut, reply_fut = self._pending[tsn]
@@ -84,9 +81,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
 #             # We've already handled, don't drop through to device handler
 #             return
-# 
+#
 #         self.handle_message(sender, True, aps_frame.profileId, aps_frame.clusterId, aps_frame.sourceEndpoint, aps_frame.destinationEndpoint, tsn, command_id, args)
-# 
+#
 #     def _handle_frame_failure(self, message_type, destination, aps_frame, message_tag, status, message):
 #         try:
 #             send_fut, reply_fut = self._pending.pop(message_tag)
@@ -97,7 +94,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #             LOGGER.warning("Unexpected message send failure")
 #         except asyncio.futures.InvalidStateError as exc:
 #             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
-# 
+#
 #     def _handle_frame_sent(self, message_type, destination, aps_frame, message_tag, status, message):
 #         try:
 #             send_fut, reply_fut = self._pending[message_tag]
