@@ -21,6 +21,7 @@ class ZiGate:
         else:
             LOGGER.info('Configuring ZiGate USB {}'.format(device))
             self._zigate = zigate.ZiGate(device, auto_start=False)
+        self._zigate.interpret_response = self.interpret_response
 
     def __getattr__(self, name):
         return self._zigate.__getattribute__(name)
@@ -30,3 +31,6 @@ class ZiGate:
 
     def set_application(self, app):
         self._app = app
+
+    def interpret_response(self, response):
+        LOGGER.debug('Received ZiGate response {}'.format(response))
