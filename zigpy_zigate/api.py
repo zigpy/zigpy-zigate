@@ -21,6 +21,8 @@ class ZiGate:
         else:
             LOGGER.info('Configuring ZiGate USB {}'.format(device))
             self._zigate = zigate.ZiGate(device, auto_start=False)
+        self._interpret_response = self._zigate.interpret_response  # keep link
+        self._zigate.interpret_response = self.interpret_response
 
     def __getattr__(self, name):
         return self._zigate.__getattribute__(name)
@@ -30,3 +32,26 @@ class ZiGate:
 
     def set_application(self, app):
         self._app = app
+
+    def add_callback(self, cb):
+        id_ = hash(cb)
+        while id_ in self._callbacks:
+            id_ += 1
+        self._callbacks[id_] = cb
+        return id_
+
+    def remove_callback(self, id_):
+        return self._callbacks.pop(id_)
+
+    def handle_callback(self, *args):
+        for callback_id, handler in self._callbacks.items():
+            try:
+                handler(*args)
+            except Exception as e:
+                LOGGER.exception("Exception running handler", exc_info=e)
+
+    def interpret_response(self, response):
+        if response.msg == 0x8000:  # status response handle by zigate instance
+            self._interpret_response(response)
+        else:
+            self.handle_callback(response)

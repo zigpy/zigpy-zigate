@@ -13,16 +13,17 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     def __init__(self, zigate, database_file=None):
         super().__init__(database_file=database_file)
         self._zigate = zigate
+        self._interpret_response = self._zigate.interpret_response
+        self._zigate.interpret_response = self.interpret_response
         self._pending = {}
         self._zigate_seq = {}
 
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
+        self._zigate.add_callback(self.zigate_callback_handler)
         self._zigate.autoStart()
         self._nwk = self._zigate.addr
         self._ieee = self._zigate.ieee
-
-#         self._zigate.add_callback(self.ezsp_callback_handler)
 
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
         self._zigate.set_channel(channel)
@@ -34,7 +35,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def force_remove(self, dev):
         self._zigate.remove_device_ieee(dev.ieee)
 
-#     def ezsp_callback_handler(self, frame_name, args):
+    def zigate_callback_handler(self, response):
+        LOGGER.debug('zigate_callback_handler {}'.format(response))
 #         if frame_name == 'incomingMessageHandler':
 #             self._handle_frame(*args)
 #         elif frame_name == 'messageSentHandler':
