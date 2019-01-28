@@ -13,8 +13,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     def __init__(self, zigate, database_file=None):
         super().__init__(database_file=database_file)
         self._zigate = zigate
-        self._interpret_response = self._zigate.interpret_response
-        self._zigate.interpret_response = self.interpret_response
         self._pending = {}
         self._zigate_seq = {}
 
