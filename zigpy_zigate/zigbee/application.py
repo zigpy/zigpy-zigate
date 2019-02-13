@@ -35,7 +35,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     def zigate_callback_handler(self, response):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
-        
+
         if response.msg == 0x8048:  # leave
             nwk = 0
             ieee = int(response['ieee'], 16)
@@ -45,6 +45,20 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             ieee = int(response['ieee'], 16)
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
+        elif response.msg == 0x8002:
+            try:
+                device = self.get_device(nwk=response['source_address'])
+            except KeyError:
+                LOGGER.debug("No such device %s", response['source_address'])
+                return
+            lqi = 0
+            device.radio_details(lqi, response.rssi)
+            tsn, command_id, is_reply, args = self.deserialize(device, response['source_endpoint'],
+                                                               response['cluster_id'], response['payload'])
+            self.handle_message(device, is_reply, response['profile_id'],
+                                response['cluster_id'],
+                                response['source_endpoint'], response['destination_endpoint'],
+                                tsn, command_id, args)
 #         if frame_name == 'incomingMessageHandler':
 #             self._handle_frame(*args)
 #         elif frame_name == 'messageSentHandler':
