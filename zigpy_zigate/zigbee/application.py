@@ -55,69 +55,50 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             device.radio_details(lqi, response.rssi)
             tsn, command_id, is_reply, args = self.deserialize(device, response['source_endpoint'],
                                                                response['cluster_id'], response['payload'])
-            self.handle_message(device, is_reply, response['profile_id'],
-                                response['cluster_id'],
-                                response['source_endpoint'], response['destination_endpoint'],
-                                tsn, command_id, args)
-#         if frame_name == 'incomingMessageHandler':
-#             self._handle_frame(*args)
+            if is_reply:
+                self._handle_reply(device, response, tsn, command_id, args)
+            else:
+                self.handle_message(device, False, response['profile_id'],
+                                    response['cluster_id'],
+                                    response['source_endpoint'], response['destination_endpoint'],
+                                    tsn, command_id, args)
+        elif response.msg == 0x8702:  # APS Data confirm Fail
+            self._handle_frame_failure(response['sequence'], response['status'])
 #         elif frame_name == 'messageSentHandler':
 #             if args[4] != t.EmberStatus.SUCCESS:
 #                 self._handle_frame_failure(*args)
 #             else:
 #                 self._handle_frame_sent(*args)
-#         elif frame_name == 'trustCenterJoinHandler':
-#             if args[2] == t.EmberDeviceUpdate.DEVICE_LEFT:
-#                 self.handle_leave(args[0], args[1])
-#             else:
-#                 self.handle_join(args[0], args[1], args[4])
 
-#     def _handle_frame(self, message_type, aps_frame, lqi, rssi, sender, binding_index, address_index, message):
-#         try:
-#             device = self.get_device(nwk=sender)
-#         except KeyError:
-#             LOGGER.debug("No such device %s", sender)
-#             return
-#
-#         device.radio_details(lqi, rssi)
-#         try:
-#             tsn, command_id, is_reply, args = self.deserialize(device, aps_frame.sourceEndpoint, aps_frame.clusterId, message)
-#         except ValueError as e:
-#             LOGGER.error("Failed to parse message (%s) on cluster %d, because %s", binascii.hexlify(message), aps_frame.clusterId, e)
-#             return
-#
-#         if is_reply:
-#             self._handle_reply(device, aps_frame, tsn, command_id, args)
-#         else:
-#             self.handle_message(device, False, aps_frame.profileId, aps_frame.clusterId, aps_frame.sourceEndpoint, aps_frame.destinationEndpoint, tsn, command_id, args)
-#
-#     def _handle_reply(self, sender, aps_frame, tsn, command_id, args):
-#         try:
-#             send_fut, reply_fut = self._pending[tsn]
-#             if send_fut.done():
-#                 self._pending.pop(tsn)
-#             if reply_fut:
-#                 reply_fut.set_result(args)
-#             return
-#         except KeyError:
-#             LOGGER.warning("Unexpected response TSN=%s command=%s args=%s", tsn, command_id, args)
-#         except asyncio.futures.InvalidStateError as exc:
-#             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
-#             # We've already handled, don't drop through to device handler
-#             return
-#
-#         self.handle_message(sender, True, aps_frame.profileId, aps_frame.clusterId, aps_frame.sourceEndpoint, aps_frame.destinationEndpoint, tsn, command_id, args)
-#
-#     def _handle_frame_failure(self, message_type, destination, aps_frame, message_tag, status, message):
-#         try:
-#             send_fut, reply_fut = self._pending.pop(message_tag)
-#             send_fut.set_exception(DeliveryError("Message send failure: %s" % (status, )))
-#             if reply_fut:
-#                 reply_fut.cancel()
-#         except KeyError:
-#             LOGGER.warning("Unexpected message send failure")
-#         except asyncio.futures.InvalidStateError as exc:
-#             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
+    def _handle_reply(self, sender, response, tsn, command_id, args):
+        try:
+            send_fut, reply_fut = self._pending[tsn]
+            if send_fut.done():
+                self._pending.pop(tsn)
+            if reply_fut:
+                reply_fut.set_result(args)
+            return
+        except KeyError:
+            LOGGER.warning("Unexpected response TSN=%s command=%s args=%s", tsn, command_id, args)
+        except asyncio.futures.InvalidStateError as exc:
+            LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
+            # We've already handled, don't drop through to device handler
+            return
+
+        self.handle_message(sender, True, response['profile_id'],
+                            response['cluster_id'], response['source_endpoint'], response['destination_endpoint'],
+                            tsn, command_id, args)
+
+    def _handle_frame_failure(self, message_tag, status):
+        try:
+            send_fut, reply_fut = self._pending.pop(message_tag)
+            send_fut.set_exception(DeliveryError("Message send failure: %s" % (status, )))
+            if reply_fut:
+                reply_fut.cancel()
+        except KeyError:
+            LOGGER.warning("Unexpected message send failure")
+        except asyncio.futures.InvalidStateError as exc:
+            LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
 #
 #     def _handle_frame_sent(self, message_type, destination, aps_frame, message_tag, status, message):
 #         try:
