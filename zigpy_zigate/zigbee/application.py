@@ -28,7 +28,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #         if pan_id:
 #             self._zigate.set_panid(pan_id)
         if extended_pan_id:
-            self._zigate.set_expended_panid(extended_pan_id)
+            self._zigate.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
         self._zigate.remove_device_ieee(dev.ieee)
