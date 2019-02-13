@@ -35,6 +35,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     def zigate_callback_handler(self, response):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
+        
+        if response.msg == 0x8048:  # leave
+            nwk = 0
+            ieee = int(response['ieee'], 16)
+            self.handle_leave(nwk, ieee)
+        elif response.msg == 0x004E:  # join
+            nwk = int(response['addr'], 16)
+            ieee = int(response['ieee'], 16)
+            parent_nwk = 0
+            self.handle_join(nwk, ieee, parent_nwk)
 #         if frame_name == 'incomingMessageHandler':
 #             self._handle_frame(*args)
 #         elif frame_name == 'messageSentHandler':
