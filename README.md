@@ -18,3 +18,5 @@ There's also a wifi adapter to communicate with ZiGate over network.
 Documents that layout the serial protocol used for ZiGate serial interface communication can be found here:
 
 - https://github.com/fairecasoimeme/ZiGate/tree/master/Protocol
+
+# WARNING : EXPERIMENTAL - NOT WORKING YET
