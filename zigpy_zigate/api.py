@@ -7,6 +7,7 @@ LOGGER = logging.getLogger(__name__)
 class ZiGate:
     def __init__(self):
         self._zigate = None
+        self._callbacks = {}
 
     def connect(self, device, baudrate=115200):
         assert self._zigate is None
