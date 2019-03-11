@@ -30,7 +30,7 @@ class ZiGate:
             if response.msg == 0x8000:  # status response handle by zigate instance
                 self._interpret_response(response)
             else:
-                loop.call_soon_threadsafe(self.handle_callback,(response,))
+                loop.call_soon_threadsafe(self.handle_callback, response)
 #                 self.handle_callback(response)
         self._zigate.interpret_response = interpret_response
 
