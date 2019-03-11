@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from binascii import unhexlify
 
 from zigpy.exceptions import DeliveryError
 import zigpy.application
@@ -43,7 +44,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_leave(nwk, ieee)
         elif response.msg == 0x004D:  # join
             nwk = int(response['addr'], 16)
-            ieee = int(response['ieee'], 16)
+            ieee = unhexlify(response['ieee'])
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif response.msg == 0x8002:
