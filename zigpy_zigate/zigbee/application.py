@@ -44,7 +44,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_leave(nwk, ieee)
         elif response.msg == 0x004D:  # join
             nwk = int(response['addr'], 16)
-            ieee = unhexlify(response['ieee'])
+            ieee = zigpy.application.t.EUI64(unhexlify(response['ieee']))
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif response.msg == 0x8002:
