@@ -40,7 +40,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if response.msg == 0x8048:  # leave
             nwk = 0
-            ieee = int(response['ieee'], 16)
+            ieee = zigpy.application.t.EUI64(unhexlify(response['ieee']))
             self.handle_leave(nwk, ieee)
         elif response.msg == 0x004D:  # join
             nwk = int(response['addr'], 16)
@@ -48,8 +48,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif response.msg == 0x8002:
+            nwk = int(response['source_address'], 16)
             try:
-                device = self.get_device(nwk=response['source_address'])
+                device = self.get_device(nwk=nwk)
             except KeyError:
                 LOGGER.debug("No such device %s", response['source_address'])
                 return
