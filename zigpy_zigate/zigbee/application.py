@@ -41,7 +41,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             nwk = 0
             ieee = int(response['ieee'], 16)
             self.handle_leave(nwk, ieee)
-        elif response.msg == 0x004E:  # join
+        elif response.msg == 0x004D:  # join
             nwk = int(response['addr'], 16)
             ieee = int(response['ieee'], 16)
             parent_nwk = 0
