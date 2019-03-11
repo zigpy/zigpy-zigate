@@ -20,6 +20,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         """Perform a complete application startup"""
         self._zigate.add_callback(self.zigate_callback_handler)
         self._zigate.autoStart()
+        self._zigate.send_data(0x0002, '01')
         self._nwk = self._zigate.addr
         self._ieee = self._zigate.ieee
 
