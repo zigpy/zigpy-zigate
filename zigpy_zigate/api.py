@@ -1,5 +1,6 @@
 import logging
 import zigate
+import asyncio
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +24,15 @@ class ZiGate:
             LOGGER.info('Configuring ZiGate USB {}'.format(device))
             self._zigate = zigate.ZiGate(device, auto_start=False)
         self._interpret_response = self._zigate.interpret_response  # keep link
-        self._zigate.interpret_response = self.interpret_response
+        loop = asyncio.get_event_loop()
+
+        def interpret_response(instance, response):
+            if response.msg == 0x8000:  # status response handle by zigate instance
+                self._interpret_response(response)
+            else:
+                loop.call_soon_threadsafe(self.handle_callback,(response,))
+#                 self.handle_callback(response)
+        self._zigate.interpret_response = interpret_response
 
     def __getattr__(self, name):
         return self._zigate.__getattribute__(name)
