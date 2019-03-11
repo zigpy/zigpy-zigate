@@ -144,6 +144,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 raise
         return v
 
-    def permit(self, time_s=60):
+    async def permit(self, time_s=60):
         assert 0 <= time_s <= 254
-        return self._zigate.permit_join(time_s)
+        self._zigate.permit_join(time_s)
