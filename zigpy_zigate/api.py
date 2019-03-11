@@ -26,7 +26,7 @@ class ZiGate:
         self._interpret_response = self._zigate.interpret_response  # keep link
         loop = asyncio.get_event_loop()
 
-        def interpret_response(instance, response):
+        def interpret_response(response):
             if response.msg == 0x8000:  # status response handle by zigate instance
                 self._interpret_response(response)
             else:
