@@ -48,7 +48,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif response.msg == 0x8002:
-            nwk = int(response['source_address'], 16)
+            nwk = int(response['dst_address'], 16)
             try:
                 device = self.get_device(nwk=nwk)
             except KeyError:
