@@ -22,8 +22,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._zigate.add_callback(self.zigate_callback_handler)
         self._zigate.autoStart()
         self._zigate.send_data(0x0002, '01')
-        self._nwk = self._zigate.addr
-        self._ieee = self._zigate.ieee
+        self._nwk = int(self._zigate.addr, 16)
+        self._ieee = zigpy.application.t.EUI64(unhexlify(self._zigate.ieee))
 
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
         self._zigate.set_channel(channel)
