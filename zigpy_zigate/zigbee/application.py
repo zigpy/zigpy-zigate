@@ -118,6 +118,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     @zigpy.util.retryable_request
     async def request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply=True, timeout=10):
+        LOGGER.debug('request %s',(nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, timeout))
         assert sequence not in self._pending
         send_fut = asyncio.Future()
         reply_fut = None
