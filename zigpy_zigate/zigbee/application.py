@@ -54,8 +54,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             except KeyError:
                 LOGGER.debug("No such device %s", response['source_address'])
                 return
-            lqi = 0
-            device.radio_details(lqi, response.rssi)
+            rssi = 0
+            device.radio_details(response.lqi, rssi)
             tsn, command_id, is_reply, args = self.deserialize(device, response['source_endpoint'],
                                                                response['cluster_id'], response['payload'])
             if is_reply:
