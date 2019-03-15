@@ -12,7 +12,7 @@ setup(
     license="GPL-3.0",
     packages=find_packages(exclude=['*.tests']),
     install_requires=[
-        'zigate',
+        'zigate>=0.29.2',
     ],
     tests_require=[
         'pytest',
