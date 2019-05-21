@@ -12,6 +12,7 @@ setup(
     license="GPL-3.0",
     packages=find_packages(exclude=['*.tests']),
     install_requires=[
+        'pyserial-asyncio',
         'zigate>=0.29.2',
     ],
     tests_require=[
