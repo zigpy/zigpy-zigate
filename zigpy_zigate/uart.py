@@ -9,10 +9,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Gateway(asyncio.Protocol):
-    END = b'\xC0'
-    ESC = b'\xDB'
-    ESC_END = b'\xDC'
-    ESC_ESC = b'\xDD'
+    START = b'\x01'
+    END = b'\x03'
 
     def __init__(self, api, connected_future=None):
         self._buffer = b''
@@ -39,66 +37,66 @@ class Gateway(asyncio.Protocol):
     def data_received(self, data):
         """Callback when there is data received from the uart"""
         self._buffer += data
-        while self._buffer:
-            end = self._buffer.find(self.END)
-            if end < 0:
-                return None
 
-            frame = self._buffer[:end]
-            self._buffer = self._buffer[(end + 1):]
-            frame = self._unescape(frame)
-
-            if (len(frame) < 4):
-                continue
-
-            checksum = frame[-2:]
-            frame = frame[:-2]
-            if self._checksum(frame) != checksum:
-                LOGGER.warning("Invalid checksum: 0x%s, data: 0x%s",
-                               binascii.hexlify(checksum).decode(),
-                               binascii.hexlify(frame).decode())
-                continue
-
-            LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
-            self._api.data_received(frame)
+        endpos = self._buffer.find(self.END)
+        while endpos != -1:
+            startpos = self._buffer.rfind(self.START, 0, endpos)
+            if startpos != -1 and startpos < endpos:
+                frame = self._buffer[startpos:endpos + 1]
+                frame = self._unescape(frame)
+                length = frame[4:8]
+                if len(frame) - 6 != length:
+                    LOGGER.warning("Invalid length: %s, data: %s",
+                                   length,
+                                   len(frame)-6)
+                    continue
+                checksum = frame[8]
+                if self._checksum(frame) != checksum:
+                    LOGGER.warning("Invalid checksum: 0x%s, data: 0x%s",
+                                   binascii.hexlify(checksum).decode(),
+                                   binascii.hexlify(frame).decode())
+                    continue
+                LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
+                self._api.data_received(frame)
+            else:
+                LOGGER.error('Malformed packet received, ignore it')
+            self._buffer = self._buffer[endpos + 1:]
+            endpos = self._buffer.find(self.END)
 
     def _unescape(self, data):
-        ret = []
-        idx = 0
-        while idx < len(data):
-            b = data[idx]
-            if b == self.ESC[0]:
-                idx += 1
-                if idx >= len(data):
-                    return None
-                elif data[idx] == self.ESC_END[0]:
-                    b = self.END[0]
-                elif data[idx] == self.ESC_ESC[0]:
-                    b = self.ESC[0]
-            ret.append(b)
-            idx += 1
-
-        return bytes(ret)
+        flip = False
+        decoded = bytearray()
+        for b in data:
+            if flip:
+                flip = False
+                decoded.append(b ^ 0x10)
+            elif b == 0x02:
+                flip = True
+            else:
+                decoded.append(b)
+        return decoded
 
     def _escape(self, data):
-        ret = []
+        encoded = bytearray()
         for b in data:
-            if b == self.END[0]:
-                ret.append(self.ESC[0])
-                ret.append(self.ESC_END[0])
-            elif b == self.ESC[0]:
-                ret.append(self.ESC[0])
-                ret.append(self.ESC_ESC[0])
+            if b < 0x10:
+                encoded.extend([0x02, 0x10 ^ b])
             else:
-                ret.append(b)
-        return bytes(ret)
+                encoded.append(b)
+        return encoded
 
-    def _checksum(self, data):
-        ret = []
-        s = ~(sum(data)) + 1
-        ret.append(s % 0x100)
-        ret.append((s >> 8) % 0x100)
-        return bytes(ret)
+    def _checksum(self, frame):
+        chcksum = 0
+        data = [frame[:4],
+                frame[-1],
+                frame[10:-1]]
+        for arg in data:
+            if isinstance(arg, int):
+                chcksum ^= arg
+                continue
+            for x in arg:
+                chcksum ^= x
+        return chcksum
 
 
 async def connect(port, baudrate, api, loop=None):
