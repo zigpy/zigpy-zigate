@@ -41,18 +41,20 @@ def test_close(gw):
 
 def test_data_received_chunk_frame(gw):
     data = b'\x01\x80\x10\x02\x10\x02\x15\xaa\x02\x10\x02\x1f?\xf0\xff\x03'
+    data_unescaped = b'\x80\x10\x00\x05\xaa\x00\x0f?\xf0\xff'
     gw.data_received(data[:-4])
     assert gw._api.data_received.call_count == 0
     gw.data_received(data[-4:])
     assert gw._api.data_received.call_count == 1
-#     assert gw._api.data_received.call_args[0][0] == data[:-3]
+    assert gw._api.data_received.call_args[0][0] == data_unescaped
 
 
 def test_data_received_full_frame(gw):
     data = b'\x01\x80\x10\x02\x10\x02\x15\xaa\x02\x10\x02\x1f?\xf0\xff\x03'
+    data_unescaped = b'\x80\x10\x00\x05\xaa\x00\x0f?\xf0\xff'
     gw.data_received(data)
     assert gw._api.data_received.call_count == 1
-#     assert gw._api.data_received.call_args[0][0] == data[:-3]
+    assert gw._api.data_received.call_args[0][0] == data_unescaped
 
 
 def test_data_received_incomplete_frame(gw):
@@ -69,9 +71,10 @@ def test_data_received_runt_frame(gw):
 
 def test_data_received_extra(gw):
     data = b'\x01\x80\x10\x02\x10\x02\x15\xaa\x02\x10\x02\x1f?\xf0\xff\x03\x00'
+    data_unescaped = b'\x80\x10\x00\x05\xaa\x00\x0f?\xf0\xff'
     gw.data_received(data)
     assert gw._api.data_received.call_count == 1
-#     assert gw._api.data_received.call_args[0][0] == data[:-4]
+    assert gw._api.data_received.call_args[0][0] == data_unescaped
     assert gw._buffer == b'\x00'
 
 
