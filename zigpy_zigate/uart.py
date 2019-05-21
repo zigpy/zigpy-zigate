@@ -28,12 +28,12 @@ class Gateway(asyncio.Protocol):
     def close(self):
         self._transport.close()
 
-    def send(self, data):
+    def send(self, cmd, data):
         """Send data, taking care of escaping and framing"""
-        LOGGER.debug("Send: 0x%s", binascii.hexlify(data).decode())
+        LOGGER.debug("Send: 0x%s %s", cmd, binascii.hexlify(data).decode())
         checksum = bytes(self._checksum(data))
         frame = self._escape(data + checksum)
-        self._transport.write(self.END + frame + self.END)
+        self._transport.write(self.START + frame + self.END)
 
     def data_received(self, data):
         """Callback when there is data received from the uart"""
@@ -45,6 +45,7 @@ class Gateway(asyncio.Protocol):
             if startpos != -1 and startpos < endpos:
                 frame = self._buffer[startpos:endpos + 1]
                 frame = self._unescape(frame[1:-1])
+                cmd = struct.unpack('!H', frame[:2])[0]
                 length = struct.unpack('!H', frame[2:4])[0]
                 if self._length(frame) != length:
                     LOGGER.warning("Invalid length: %s, data: %s",
@@ -60,7 +61,9 @@ class Gateway(asyncio.Protocol):
                     self._buffer = self._buffer[endpos + 1:]
                     continue
                 LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
-                self._api.data_received(frame)
+                f_data = frame[5:-1]
+                lqi = frame[-1]
+                self._api.data_received((cmd, f_data, lqi))
             else:
                 LOGGER.warning('Malformed packet received, ignore it')
             self._buffer = self._buffer[endpos + 1:]
