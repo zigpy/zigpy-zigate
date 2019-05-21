@@ -2,6 +2,7 @@ import asyncio
 import logging
 import serial
 import binascii
+import struct
 
 import serial_asyncio
 
@@ -43,23 +44,25 @@ class Gateway(asyncio.Protocol):
             startpos = self._buffer.rfind(self.START, 0, endpos)
             if startpos != -1 and startpos < endpos:
                 frame = self._buffer[startpos:endpos + 1]
-                frame = self._unescape(frame)
-                length = frame[4:8]
-                if len(frame) - 6 != length:
+                frame = self._unescape(frame[1:-1])
+                length = struct.unpack('!H', frame[2:4])[0]
+                if self._length(frame) != length:
                     LOGGER.warning("Invalid length: %s, data: %s",
                                    length,
                                    len(frame) - 6)
+                    self._buffer = self._buffer[endpos + 1:]
                     continue
-                checksum = frame[8]
+                checksum = frame[4]
                 if self._checksum(frame) != checksum:
                     LOGGER.warning("Invalid checksum: 0x%s, data: 0x%s",
-                                   binascii.hexlify(checksum).decode(),
+                                   checksum,
                                    binascii.hexlify(frame).decode())
+                    self._buffer = self._buffer[endpos + 1:]
                     continue
                 LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
                 self._api.data_received(frame)
             else:
-                LOGGER.error('Malformed packet received, ignore it')
+                LOGGER.warning('Malformed packet received, ignore it')
             self._buffer = self._buffer[endpos + 1:]
             endpos = self._buffer.find(self.END)
 
@@ -87,9 +90,9 @@ class Gateway(asyncio.Protocol):
 
     def _checksum(self, frame):
         chcksum = 0
-        data = [frame[:4],
-                frame[-1],
-                frame[10:-1]]
+        data = [frame[:2],
+                frame[2:4],
+                frame[5:]]
         for arg in data:
             if isinstance(arg, int):
                 chcksum ^= arg
@@ -97,6 +100,10 @@ class Gateway(asyncio.Protocol):
             for x in arg:
                 chcksum ^= x
         return chcksum
+
+    def _length(self, frame):
+        length = len(frame) - 5
+        return length
 
 
 async def connect(port, baudrate, api, loop=None):
