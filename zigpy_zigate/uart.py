@@ -48,7 +48,7 @@ class Gateway(asyncio.Protocol):
                 if len(frame) - 6 != length:
                     LOGGER.warning("Invalid length: %s, data: %s",
                                    length,
-                                   len(frame)-6)
+                                   len(frame) - 6)
                     continue
                 checksum = frame[8]
                 if self._checksum(frame) != checksum:
