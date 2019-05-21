@@ -65,25 +65,25 @@ class Gateway(asyncio.Protocol):
 
     def _unescape(self, data):
         flip = False
-        decoded = bytearray()
+        ret = []
         for b in data:
             if flip:
                 flip = False
-                decoded.append(b ^ 0x10)
+                ret.append(b ^ 0x10)
             elif b == 0x02:
                 flip = True
             else:
-                decoded.append(b)
-        return decoded
+                ret.append(b)
+        return bytes(ret)
 
     def _escape(self, data):
-        encoded = bytearray()
+        ret = []
         for b in data:
             if b < 0x10:
-                encoded.extend([0x02, 0x10 ^ b])
+                ret.extend([0x02, 0x10 ^ b])
             else:
-                encoded.append(b)
-        return encoded
+                ret.append(b)
+        return bytes(ret)
 
     def _checksum(self, frame):
         chcksum = 0
