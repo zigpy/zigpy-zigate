@@ -1,14 +1,38 @@
 import logging
 import zigate
 import asyncio
+import enum
+import binascii
+
+from . import uart
+from . import types as t
+
+LOGGER = logging.getLogger(__name__)
+
+COMMAND_TIMEOUT = 2
+ZIGATE_BAUDRATE = 115200
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ZiGate:
     def __init__(self):
+        self._uart = None
         self._zigate = None
         self._callbacks = {}
+
+    async def uart_connect(self, device, baudrate=ZIGATE_BAUDRATE):
+        assert self._uart is None
+        self._uart = await uart.connect(device, baudrate, self)
+
+    def close(self):
+        return self._uart.close()
+
+    def set_application(self, app):
+        self._app = app
+
+    def data_received(self, cmd, data, lqi):
+        pass
 
     async def connect(self, device, baudrate=115200):
         assert self._zigate is None
@@ -36,12 +60,6 @@ class ZiGate:
 
     def __getattr__(self, name):
         return self._zigate.__getattribute__(name)
-
-    def close(self):
-        return self._zigate.close()
-
-    def set_application(self, app):
-        self._app = app
 
     def add_callback(self, cb):
         id_ = hash(cb)
