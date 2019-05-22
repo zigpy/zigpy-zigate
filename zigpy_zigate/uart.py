@@ -31,8 +31,11 @@ class Gateway(asyncio.Protocol):
     def send(self, cmd, data):
         """Send data, taking care of escaping and framing"""
         LOGGER.debug("Send: 0x%s %s", cmd, binascii.hexlify(data).decode())
-        checksum = bytes(self._checksum(data))
-        frame = self._escape(data + checksum)
+        length = len(data)
+        byte_head = struct.pack('!HH', cmd, length)
+        checksum = self._checksum(byte_head, data)
+        frame = struct.pack('!HHB%ds' % length, cmd, length, checksum, data)
+        frame = self._escape(frame)
         self._transport.write(self.START + frame + self.END)
 
     def data_received(self, data):
@@ -45,24 +48,20 @@ class Gateway(asyncio.Protocol):
             if startpos != -1 and startpos < endpos:
                 frame = self._buffer[startpos:endpos + 1]
                 frame = self._unescape(frame[1:-1])
-                cmd = struct.unpack('!H', frame[:2])[0]
-                length = struct.unpack('!H', frame[2:4])[0]
+                cmd, length, checksum, f_data, lqi = struct.unpack('!HHB%dsB' % (len(frame) - 6), frame)
                 if self._length(frame) != length:
                     LOGGER.warning("Invalid length: %s, data: %s",
                                    length,
                                    len(frame) - 6)
                     self._buffer = self._buffer[endpos + 1:]
                     continue
-                checksum = frame[4]
-                if self._checksum(frame) != checksum:
-                    LOGGER.warning("Invalid checksum: 0x%s, data: 0x%s",
+                if self._checksum(frame[:4], lqi, f_data) != checksum:
+                    LOGGER.warning("Invalid checksum: %s, data: 0x%s",
                                    checksum,
                                    binascii.hexlify(frame).decode())
                     self._buffer = self._buffer[endpos + 1:]
                     continue
                 LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
-                f_data = frame[5:-1]
-                lqi = frame[-1]
                 self._api.data_received((cmd, f_data, lqi))
             else:
                 LOGGER.warning('Malformed packet received, ignore it')
@@ -91,12 +90,9 @@ class Gateway(asyncio.Protocol):
                 ret.append(b)
         return bytes(ret)
 
-    def _checksum(self, frame):
+    def _checksum(self, *args):
         chcksum = 0
-        data = [frame[:2],
-                frame[2:4],
-                frame[5:]]
-        for arg in data:
+        for arg in args:
             if isinstance(arg, int):
                 chcksum ^= arg
                 continue
