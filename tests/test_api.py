@@ -8,7 +8,7 @@ from zigpy_zigate import api as zigate_api
 @pytest.fixture
 def api():
     api = zigate_api.ZiGate()
-    api._zigate = mock.MagicMock()
+    api._uart = mock.MagicMock()
     return api
 
 
@@ -23,6 +23,6 @@ def test_connect(monkeypatch):
 
 
 def test_close(api):
-    api._zigate.close = mock.MagicMock()
+    api._uart.close = mock.MagicMock()
     api.close()
-    assert api._zigate.close.call_count == 1
+    assert api._uart.close.call_count == 1
