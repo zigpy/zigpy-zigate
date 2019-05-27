@@ -41,7 +41,7 @@ class ZiGate:
         if cmd in self._status_awaiting:
             fut = self._status_awaiting.pop(cmd)
             fut.set_result((data, lqi))
-        elif cmd in self.__awaiting:
+        elif cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
 
