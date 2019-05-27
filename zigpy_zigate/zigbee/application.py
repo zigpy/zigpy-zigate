@@ -11,26 +11,39 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
-    def __init__(self, zigate, database_file=None):
+    def __init__(self, api, database_file=None):
         super().__init__(database_file=database_file)
-        self._zigate = zigate
+        self._api = api
+        api.set_application(self)
+
         self._pending = {}
         self._zigate_seq = {}
 
+        self._nwk = 0
+        self._ieee = 0
+        self.version = ''
+
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
+        await self._api.send_data(0x0002, '01')
+        r = await self._api.version()
+        self.version = r
+        
+        network_state = await self._api.network_state()
         self._zigate.add_callback(self.zigate_callback_handler)
-        self._zigate.autoStart()
-        self._zigate.send_data(0x0002, '01')
-        self._nwk = int(self._zigate.addr, 16)
-        self._ieee = zigpy.application.t.EUI64(unhexlify(self._zigate.ieee))
+        
+        self._nwk = int(network_state.addr, 16)
+        self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
+        
+        if auto_form:
+            await self.form_network()
 
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
-        self._zigate.set_channel(channel)
+        self._api.set_channel(channel)
 #         if pan_id:
-#             self._zigate.set_panid(pan_id)
+#             self._api.set_panid(pan_id)
         if extended_pan_id:
-            self._zigate.set_extended_panid(extended_pan_id)
+            self._api.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
         self._zigate.remove_device_ieee(dev.ieee)
