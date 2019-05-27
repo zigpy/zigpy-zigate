@@ -75,15 +75,15 @@ class ZiGate:
             LOGGER.warning("No response to get_network_state command")
             raise
 
-    def set_channel(self, channel):
+    async def set_channel(self, channel):
         channels = [channel]
         mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
         mask = struct.pack('!I', mask)
-        self._command(0x0021, mask),
+        await self._command(0x0021, mask),
 
-    def set_extended_panid(self, extended_pan_id):
+    async def set_extended_panid(self, extended_pan_id):
         data = struct.pack('!Q', extended_pan_id)
-        self._command(0x0020, data)
+        await self._command(0x0020, data)
 
     async def old_connect(self, device, baudrate=115200):
         assert self._zigate is None
