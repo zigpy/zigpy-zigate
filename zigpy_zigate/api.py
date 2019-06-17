@@ -38,6 +38,7 @@ class ZiGate:
         self._app = app
 
     def data_received(self, cmd, data, lqi):
+        LOGGER.warning("data received %s %s %s", cmd, data, lqi)
         if cmd in self._status_awaiting:
             fut = self._status_awaiting.pop(cmd)
             fut.set_result((data, lqi))
@@ -45,7 +46,7 @@ class ZiGate:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
 
-    async def _command(self, cmd, data='', wait_response=None, wait_status=True):
+    async def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
         fut = asyncio.Future()
         if wait_status:
@@ -84,6 +85,9 @@ class ZiGate:
     async def set_extended_panid(self, extended_pan_id):
         data = struct.pack('!Q', extended_pan_id)
         await self._command(0x0020, data)
+        
+    async def permit_join(self, duration=60):
+        await self._command(0x0049, 'FFFC{:02X}00'.format(duration))
 
     async def old_connect(self, device, baudrate=115200):
         assert self._zigate is None

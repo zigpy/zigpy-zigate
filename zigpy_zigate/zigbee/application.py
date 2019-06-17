@@ -25,15 +25,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
-        await self._api.send_data(0x0002, '01')
+        await self._api._command(0x0002, b'\x01')
         r = await self._api.version()
         self.version = r
         
-        network_state = await self._api.network_state()
-        self._zigate.add_callback(self.zigate_callback_handler)
+        network_state = await self._api.get_network_state()
+        self._api.add_callback(self.zigate_callback_handler)
         
-        self._nwk = int(network_state.addr, 16)
-        self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
+        #print(network_state.result())
+        #self._nwk = int(network_state.addr, 16)
+        #self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
         
         if auto_form:
             await self.form_network()
@@ -46,7 +47,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self._api.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
-        self._zigate.remove_device_ieee(dev.ieee)
+        self._api.remove_device_ieee(dev.ieee)
 
     def zigate_callback_handler(self, response):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
@@ -138,7 +139,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if expect_reply:
             reply_fut = asyncio.Future()
         self._pending[sequence] = (send_fut, reply_fut)
-        v = self._zigate.raw_aps_data_request('{:04x}'.format(nwk), src_ep, dst_ep, profile, cluster, data)
+        v = self._api.raw_aps_data_request('{:04x}'.format(nwk), src_ep, dst_ep, profile, cluster, data)
         self._zigate_seq[sequence] = v.sequence
 
         if v.status != 0:
@@ -159,6 +160,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 raise
         return v
 
-    async def permit(self, time_s=60):
+    async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
-        self._zigate.permit_join(time_s)
+        self._api.permit_join(time_s)
+    
+    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
+                        sequence, data, broadcast_address):
+        LOGGER.debug("Broadcast not implemented.")
+        
