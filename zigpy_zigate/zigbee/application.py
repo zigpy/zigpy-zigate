@@ -40,11 +40,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self.form_network()
 
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
-        self._api.set_channel(channel)
+        await self._api.set_channel(channel)
 #         if pan_id:
 #             self._api.set_panid(pan_id)
         if extended_pan_id:
-            self._api.set_extended_panid(extended_pan_id)
+            await self._api.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
         self._api.remove_device_ieee(dev.ieee)
@@ -162,7 +162,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
-        self._api.permit_join(time_s)
+        await self._api.permit_join(time_s)
     
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):

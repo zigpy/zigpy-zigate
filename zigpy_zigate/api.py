@@ -28,6 +28,7 @@ class ZiGate:
         self.network_state = None
 
     async def connect(self, device, baudrate=ZIGATE_BAUDRATE):
+        baudrate = ZIGATE_BAUDRATE
         assert self._uart is None
         self._uart = await uart.connect(device, baudrate, self)
 
@@ -38,7 +39,8 @@ class ZiGate:
         self._app = app
 
     def data_received(self, cmd, data, lqi):
-        LOGGER.warning("data received %s %s %s", cmd, data, lqi)
+        LOGGER.warning("data received %s %s LQI:%s", hex(cmd),
+                       binascii.hexlify(data), lqi)
         if cmd in self._status_awaiting:
             fut = self._status_awaiting.pop(cmd)
             fut.set_result((data, lqi))
@@ -85,9 +87,10 @@ class ZiGate:
     async def set_extended_panid(self, extended_pan_id):
         data = struct.pack('!Q', extended_pan_id)
         await self._command(0x0020, data)
-        
+
     async def permit_join(self, duration=60):
-        await self._command(0x0049, 'FFFC{:02X}00'.format(duration))
+        data = struct.pack('!HBB', 0xfffc, duration, 0)
+        await self._command(0x0049, data)
 
     async def old_connect(self, device, baudrate=115200):
         assert self._zigate is None

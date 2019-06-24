@@ -30,21 +30,20 @@ class Gateway(asyncio.Protocol):
 
     def send(self, cmd, data=b''):
         """Send data, taking care of escaping and framing"""
-        LOGGER.debug("Send: 0x%s %s", cmd, data)
-        
+        LOGGER.debug("Send: %s %s", hex(cmd), binascii.hexlify(data))
         length = len(data)
         byte_head = struct.pack('!HH', cmd, length)
         checksum = self._checksum(byte_head, data)
-        print(length, cmd, length, checksum, data, type(data))
         frame = struct.pack('!HHB%ds' % length, cmd, length, checksum, data)
+        LOGGER.debug('Frame to send: %s', frame)
         frame = self._escape(frame)
+        LOGGER.debug('Frame escaped: %s', frame)
         self._transport.write(self.START + frame + self.END)
 
     def data_received(self, data):
         """Callback when there is data received from the uart"""
-        LOGGER.debug('data_received %s', data)
         self._buffer += data
-
+#         LOGGER.debug('data_received %s', self._buffer)
         endpos = self._buffer.find(self.END)
         while endpos != -1:
             startpos = self._buffer.rfind(self.START, 0, endpos)
