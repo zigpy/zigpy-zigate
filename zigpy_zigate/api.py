@@ -97,6 +97,9 @@ class ZiGate:
         data = t.serialize(enable, COMMANDS[0x0002])
         await self._command(0x0002, data),
 
+    async def reset(self):
+        await self._command(0x0011)
+
     async def set_channel(self, channel):
         channels = [channel]
         mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
