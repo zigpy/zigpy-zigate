@@ -14,6 +14,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     def __init__(self, api, database_file=None):
         super().__init__(database_file=database_file)
         self._api = api
+        self._api.add_callback(self.zigate_callback_handler)
         api.set_application(self)
 
         self._pending = {}
@@ -30,7 +31,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self.version = r
 
         network_state = await self._api.get_network_state()
-        self._api.add_callback(self.zigate_callback_handler)
 
 #         print(network_state.result())
 #         self._nwk = int(network_state.addr, 16)
