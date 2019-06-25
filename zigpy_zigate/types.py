@@ -156,3 +156,27 @@ class Struct:
         )
         r += '>'
         return r
+
+
+class Address(Struct):
+    _fields = [
+        ('address_mode', ADDRESS_MODE),
+        ('address', uint64_t),
+    ]
+
+    def __eq__(self, other):
+        return other.address_mode == self.address_mode and other.address == self.address
+
+    @classmethod
+    def deserialize(cls, data):
+        r = cls()
+        field_name, field_type = cls._fields[0]
+        mode, data = field_type.deserialize(data)
+        setattr(r, field_name, mode)
+        v = None
+        if mode in [ADDRESS_MODE.GROUP, ADDRESS_MODE.NWK]:
+            v, data = uint16_t.deserialize(data)
+        elif mode == ADDRESS_MODE.IEEE:
+            v, data = uint64_t.deserialize(data)
+        setattr(r, cls._fields[1][0], v)
+        return r, data

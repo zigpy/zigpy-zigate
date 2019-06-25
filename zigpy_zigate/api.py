@@ -18,7 +18,7 @@ RESPONSES = {
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.ADDRESS_MODE, t.uint16_t, t.ADDRESS_MODE, t.uint16_t, t.LBytes),
     0x8048: (t.uint64_t, t.uint8_t),
-    0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.ADDRESS_MODE, t.uint16_t, t.uint8_t),
+    0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
     }
 
 COMMANDS = {

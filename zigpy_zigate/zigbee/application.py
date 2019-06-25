@@ -25,7 +25,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
-        await self._api._command(0x0002, b'\x01')
+        await self._api.set_raw_mode()
         r = await self._api.version()
         self.version = r
 
@@ -163,8 +163,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
         await self._api.permit_join(time_s)
-    
+
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):
         LOGGER.debug("Broadcast not implemented.")
-        
+

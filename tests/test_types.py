@@ -33,22 +33,26 @@ def test_deserialize():
     data = b'\x00\x01\x01\x02\x12\x34\xff'
     schema = RESPONSES[0x8702]
     result, rest = t.deserialize(data + extra, schema)
+    addr = t.Address()
+    addr.address_mode = t.ADDRESS_MODE.NWK
+    addr.address = 0x1234
     assert result[0] == 0x00
     assert result[1] == 0x01
     assert result[2] == 0x01
-    assert result[3] == 0x02
-    assert result[4] == 0x1234
-    assert result[5] == 0xff
+    assert result[3] == addr
+    assert result[4] == 0xff
 
     data = b'\x00\x01\x01\x03\x12\x34\x56\x78\x9a\xbc\xde\xf0\xff'
     schema = RESPONSES[0x8702]
     result, rest = t.deserialize(data + extra, schema)
+    addr = t.Address()
+    addr.address_mode = t.ADDRESS_MODE.IEEE
+    addr.address = 0x123456789abcdef0
     assert result[0] == 0x00
     assert result[1] == 0x01
     assert result[2] == 0x01
-    assert result[3] == 0x03
-    assert result[4] == 0x123456789abcdef0
-    assert result[5] == 0xff
+    assert result[3] == addr
+    assert result[4] == 0xff
 
 
 def test_serialize():
