@@ -1,7 +1,5 @@
 import logging
-import zigate
 import asyncio
-import enum
 import binascii
 import functools
 import struct
@@ -14,7 +12,15 @@ LOGGER = logging.getLogger(__name__)
 COMMAND_TIMEOUT = 3
 ZIGATE_BAUDRATE = 115200
 
-LOGGER = logging.getLogger(__name__)
+RESPONSES = {
+    0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
+    0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
+             t.ADDRESS_MODE, t.uint16_t, t.ADDRESS_MODE, t.uint16_t, t.LBytes),
+    }
+
+COMMANDS = {
+    0x0002: (t.uint8_t,),
+    }
 
 
 class ZiGate:
@@ -38,14 +44,16 @@ class ZiGate:
         self._app = app
 
     def data_received(self, cmd, data, lqi):
-        LOGGER.warning("data received %s %s LQI:%s", hex(cmd),
-                       binascii.hexlify(data), lqi)
+        LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
+                     binascii.hexlify(data), lqi)
+        data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd in self._status_awaiting:
             fut = self._status_awaiting.pop(cmd)
             fut.set_result((data, lqi))
         elif cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
+        self.handle_callback(data)
 
     async def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
@@ -77,6 +85,10 @@ class ZiGate:
             LOGGER.warning("No response to get_network_state command")
             raise
 
+    async def set_raw_mode(self, enable=True):
+        data = t.serialize(enable, COMMANDS[0x0002])
+        await self._command(0x0002, data),
+
     async def set_channel(self, channel):
         channels = [channel]
         mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
@@ -107,9 +119,3 @@ class ZiGate:
                 handler(*args)
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
-
-    def interpret_response(self, response):
-        if response.msg == 0x8000:  # status response handle by zigate instance
-            self._interpret_response(response)
-        else:
-            self.handle_callback(response)

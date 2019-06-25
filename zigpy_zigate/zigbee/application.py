@@ -28,14 +28,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api._command(0x0002, b'\x01')
         r = await self._api.version()
         self.version = r
-        
+
         network_state = await self._api.get_network_state()
         self._api.add_callback(self.zigate_callback_handler)
-        
-        #print(network_state.result())
-        #self._nwk = int(network_state.addr, 16)
-        #self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
-        
+
+#         print(network_state.result())
+#         self._nwk = int(network_state.addr, 16)
+#         self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
+
         if auto_form:
             await self.form_network()
 

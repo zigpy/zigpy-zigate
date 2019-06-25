@@ -22,26 +22,26 @@ class Bytes(bytes):
         return cls(data), b''
 
 
-class LVBytes(bytes):
+class LBytes(bytes):
     def serialize(self):
-        return uint16_t(len(self)).serialize() + self
+        return uint8_t(len(self)).serialize() + self
 
     @classmethod
-    def deserialize(cls, data, byteorder='little'):
-        bytes = int.from_bytes(data[:2], byteorder)
-        s = data[2:bytes + 2]
-        return s, data[bytes + 2:]
+    def deserialize(cls, data, byteorder='big'):
+        _bytes = int.from_bytes(data[:1], byteorder)
+        s = data[1:_bytes + 1]
+        return s, data[_bytes + 1:]
 
 
 class int_t(int):
     _signed = True
     _size = 0
 
-    def serialize(self, byteorder='little'):
+    def serialize(self, byteorder='big'):
         return self.to_bytes(self._size, byteorder, signed=self._signed)
 
     @classmethod
-    def deserialize(cls, data, byteorder='little'):
+    def deserialize(cls, data, byteorder='big'):
         # Work around https://bugs.python.org/issue23640
         r = cls(int.from_bytes(data[:cls._size], byteorder, signed=cls._signed))
         data = data[cls._size:]
@@ -117,7 +117,7 @@ class uint64_t(uint_t):
 
 
 class ADDRESS_MODE(uint8_t, enum.Enum):
-    # Address modes used in deconz protocol
+    # Address modes used in zigate protocol
 
     GROUP = 0x01
     NWK = 0x02
