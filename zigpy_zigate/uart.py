@@ -63,7 +63,7 @@ class Gateway(asyncio.Protocol):
                                    binascii.hexlify(frame).decode())
                     self._buffer = self._buffer[endpos + 1:]
                     continue
-                LOGGER.debug("Frame received: 0x%s", binascii.hexlify(frame).decode())
+                LOGGER.debug("Frame received: %s", binascii.hexlify(frame).decode())
                 self._api.data_received(cmd, f_data, lqi)
             else:
                 LOGGER.warning('Malformed packet received, ignore it')

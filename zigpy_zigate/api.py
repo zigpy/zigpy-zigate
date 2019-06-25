@@ -11,7 +11,7 @@ from . import types as t
 
 LOGGER = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 2
+COMMAND_TIMEOUT = 3
 ZIGATE_BAUDRATE = 115200
 
 LOGGER = logging.getLogger(__name__)
@@ -20,7 +20,6 @@ LOGGER = logging.getLogger(__name__)
 class ZiGate:
     def __init__(self):
         self._uart = None
-        self._zigate = None
         self._callbacks = {}
         self._awaiting = {}
         self._status_awaiting = {}
@@ -28,7 +27,7 @@ class ZiGate:
         self.network_state = None
 
     async def connect(self, device, baudrate=ZIGATE_BAUDRATE):
-        baudrate = ZIGATE_BAUDRATE
+        baudrate = ZIGATE_BAUDRATE  # fix baudrate for zigate
         assert self._uart is None
         self._uart = await uart.connect(device, baudrate, self)
 
@@ -91,33 +90,6 @@ class ZiGate:
     async def permit_join(self, duration=60):
         data = struct.pack('!HBB', 0xfffc, duration, 0)
         await self._command(0x0049, data)
-
-    async def old_connect(self, device, baudrate=115200):
-        assert self._zigate is None
-        if '.' in device:  # supposed I.P:PORT
-            host_port = device.split(':', 1)
-            host = host_port[0]
-            port = None
-            if len(host_port) == 2:
-                port = int(host_port[1])
-            LOGGER.info('Configuring ZiGate WiFi {} {}'.format(host, port))
-            self._zigate = zigate.ZiGateWiFi(host, port, auto_start=False)
-        else:
-            LOGGER.info('Configuring ZiGate USB {}'.format(device))
-            self._zigate = zigate.ZiGate(device, auto_start=False)
-        self._interpret_response = self._zigate.interpret_response  # keep link
-        loop = asyncio.get_event_loop()
-
-        def interpret_response(response):
-            if response.msg == 0x8000:  # status response handle by zigate instance
-                self._interpret_response(response)
-            else:
-                loop.call_soon_threadsafe(self.handle_callback, response)
-#                 self.handle_callback(response)
-        self._zigate.interpret_response = interpret_response
-
-    def __getattr__(self, name):
-        return self._zigate.__getattribute__(name)
 
     def add_callback(self, cb):
         id_ = hash(cb)
