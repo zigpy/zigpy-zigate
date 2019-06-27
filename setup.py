@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="zigpy-zigate",
-    version="0.0.1",
+    version="0.1.0",
     description="A library which communicates with ZiGate radios for zigpy",
     url="http://github.com/doudz/zigpy-zigate",
     author="Sébastien RAMAGE",
@@ -13,7 +13,7 @@ setup(
     packages=find_packages(exclude=['*.tests']),
     install_requires=[
         'pyserial-asyncio',
-        'zigate>=0.29.2',
+        'zigpy'
     ],
     tests_require=[
         'pytest',
