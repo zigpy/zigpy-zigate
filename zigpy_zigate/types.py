@@ -1,4 +1,5 @@
 import enum
+import zigpy.types
 
 
 def deserialize(data, schema):
@@ -116,6 +117,17 @@ class uint64_t(uint_t):
     _size = 8
 
 
+class EUI64(zigpy.types.EUI64):
+    @classmethod
+    def deserialize(cls, data):
+        r, data = super().deserialize(data)
+        return cls(r[::-1]), data
+
+    def serialize(self):
+        assert self._length == len(self)
+        return b''.join([i.serialize() for i in self])
+
+
 class ADDRESS_MODE(uint8_t, enum.Enum):
     # Address modes used in zigate protocol
 
@@ -133,6 +145,12 @@ class Struct:
             for field in self._fields:
                 if hasattr(args[0], field[0]):
                     setattr(self, field[0], getattr(args[0], field[0]))
+        elif len(args) == len(self._fields):
+            for arg, field in zip(args, self._fields):
+                setattr(self, field[0], arg)
+        elif kwargs:
+            for k, v in kwargs.items():
+                setattr(self, k, v)
 
     def serialize(self):
         r = b''
@@ -161,7 +179,7 @@ class Struct:
 class Address(Struct):
     _fields = [
         ('address_mode', ADDRESS_MODE),
-        ('address', uint64_t),
+        ('address', EUI64),
     ]
 
     def __eq__(self, other):
@@ -177,6 +195,6 @@ class Address(Struct):
         if mode in [ADDRESS_MODE.GROUP, ADDRESS_MODE.NWK]:
             v, data = uint16_t.deserialize(data)
         elif mode == ADDRESS_MODE.IEEE:
-            v, data = uint64_t.deserialize(data)
+            v, data = EUI64.deserialize(data)
         setattr(r, cls._fields[1][0], v)
         return r, data

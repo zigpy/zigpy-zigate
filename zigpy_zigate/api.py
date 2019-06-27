@@ -13,13 +13,13 @@ COMMAND_TIMEOUT = 3
 ZIGATE_BAUDRATE = 115200
 
 RESPONSES = {
-    0x004D: (t.uint16_t, t.uint64_t, t.uint8_t),
+    0x004D: (t.uint16_t, t.EUI64, t.uint8_t),
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
-             t.ADDRESS_MODE, t.uint16_t, t.ADDRESS_MODE, t.uint16_t, t.LBytes),
-    0x8009: (t.uint16_t, t.uint64_t, t.uint16_t, t.uint64_t, t.uint8_t),
+             t.Address, t.Address, t.LBytes),
+    0x8009: (t.uint16_t, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
-    0x8048: (t.uint64_t, t.uint8_t),
+    0x8048: (t.EUI64, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
     }
 
@@ -61,7 +61,7 @@ class ZiGate:
         elif cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
-        self.handle_callback(data)
+        self.handle_callback(cmd, data, lqi)
 
     async def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
@@ -113,6 +113,10 @@ class ZiGate:
     async def permit_join(self, duration=60):
         data = struct.pack('!HBB', 0xfffc, duration, 0)
         await self._command(0x0049, data)
+
+    async def remove_device(self, zigate_ieee, ieee):
+        data = struct.pack('!QQ', zigate_ieee, ieee)
+        await self._command(0x0026, data)
 
     def add_callback(self, cb):
         id_ = hash(cb)

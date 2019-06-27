@@ -4,8 +4,9 @@ from binascii import unhexlify
 
 from zigpy.exceptions import DeliveryError
 import zigpy.application
+import zigpy.types
 import zigpy.util
-
+from zigpy_zigate import types as t
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,59 +34,60 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         network_state = await self._api.get_network_state()
 
 #         print(network_state.result())
-#         self._nwk = int(network_state.addr, 16)
-#         self._ieee = zigpy.application.t.EUI64(unhexlify(network_state.ieee))
+#         self._nwk = network_state[0]
+#         self._ieee = network_state[1]
 
         if auto_form:
             await self.form_network()
 
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
         await self._api.set_channel(channel)
-#         if pan_id:
+        if pan_id:
+            LOGGER.warning('Setting pan_id is not supported by ZiGate')
 #             self._api.set_panid(pan_id)
         if extended_pan_id:
             await self._api.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
-        self._api.remove_device_ieee(dev.ieee)
+        self._api.remove_device(self._ieee, dev.ieee)
 
-    def zigate_callback_handler(self, response):
+    def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
 
-        if response.msg == 0x8048:  # leave
+        if msg == 0x8048:  # leave
             nwk = 0
-            ieee = zigpy.application.t.EUI64(unhexlify(response['ieee']))
+            ieee = response[0]
             self.handle_leave(nwk, ieee)
-        elif response.msg == 0x004D:  # join
-            nwk = int(response['addr'], 16)
-            ieee = zigpy.application.t.EUI64(unhexlify(response['ieee']))
+        elif msg == 0x004D:  # join
+            nwk = response[0]
+            ieee = response[1]
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
-        elif response.msg == 0x8002:
-            nwk = int(response['source_address'], 16)
+        elif msg == 0x8002:
             try:
-                device = self.get_device(nwk=nwk)
+                if response[5].address_mode == t.ADDRESS_MODE.NWK:
+                    device = self.get_device(nwk=response[5].address)
+                elif response[5].address_mode == t.ADDRESS_MODE.IEEE:
+                    device = self.get_device(ieee=response[5].address)
+                else:
+                    LOGGER.error("No such device %s", response[5].address)
+                    return
             except KeyError:
-                LOGGER.debug("No such device %s", response['source_address'])
+                LOGGER.debug("No such device %s", response[5].address)
                 return
             rssi = 0
-            device.radio_details(response.lqi, rssi)
-            tsn, command_id, is_reply, args = self.deserialize(device, response['source_endpoint'],
-                                                               response['cluster_id'], response['payload'])
+            device.radio_details(lqi, rssi)
+            tsn, command_id, is_reply, args = self.deserialize(device, response[3],
+                                                               response[2], response[-1])
             if is_reply:
                 self._handle_reply(device, response, tsn, command_id, args)
             else:
-                self.handle_message(device, False, response['profile_id'],
-                                    response['cluster_id'],
-                                    response['source_endpoint'], response['destination_endpoint'],
+                self.handle_message(device, False, response[1],
+                                    response[2],
+                                    response[3], response[4],
                                     tsn, command_id, args)
-        elif response.msg == 0x8702:  # APS Data confirm Fail
-            self._handle_frame_failure(response['sequence'], response['status'])
-#         elif frame_name == 'messageSentHandler':
-#             if args[4] != t.EmberStatus.SUCCESS:
-#                 self._handle_frame_failure(*args)
-#             else:
-#                 self._handle_frame_sent(*args)
+        elif msg == 0x8702:  # APS Data confirm Fail
+            self._handle_frame_failure(response[4], response[0])
 
     def _handle_reply(self, sender, response, tsn, command_id, args):
         try:
