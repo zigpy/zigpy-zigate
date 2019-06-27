@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+import serial_asyncio
 from zigpy_zigate import api as zigate_api
 
 
@@ -19,7 +20,15 @@ def test_set_application(api):
 @pytest.mark.asyncio
 async def test_connect(monkeypatch):
     api = zigate_api.ZiGate()
-    await api.connect('dummy', 115200)
+    portmock = mock.MagicMock()
+
+    async def mock_conn(loop, protocol_factory, **kwargs):
+        protocol = protocol_factory()
+        loop.call_soon(protocol.connection_made, None)
+        return None, protocol
+    monkeypatch.setattr(serial_asyncio, 'create_serial_connection', mock_conn)
+
+    await api.connect(portmock, 115200)
 
 
 def test_close(api):
