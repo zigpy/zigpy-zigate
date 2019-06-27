@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from zigpy_zigate import api as zigate_api
 
 

@@ -1,4 +1,3 @@
-import pytest
 from zigpy_zigate import types as t
 from zigpy_zigate.api import RESPONSES, COMMANDS
 
@@ -65,4 +64,3 @@ def test_EUI64():
     ieee, rest = t.EUI64.deserialize(data)
     assert rest == b'\x00'
     assert ieee == t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
-    
