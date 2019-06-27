@@ -1,10 +1,8 @@
 import asyncio
 import logging
-from binascii import unhexlify
 
 from zigpy.exceptions import DeliveryError
 import zigpy.application
-import zigpy.types
 import zigpy.util
 from zigpy_zigate import types as t
 
