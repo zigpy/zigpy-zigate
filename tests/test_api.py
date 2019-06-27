@@ -16,9 +16,10 @@ def test_set_application(api):
     assert api._app == mock.sentinel.app
 
 
-def test_connect(monkeypatch):
+@pytest.mark.asyncio
+async def test_connect(monkeypatch):
     api = zigate_api.ZiGate()
-    api.connect('dummy', 115200)
+    await api.connect('dummy', 115200)
 
 
 def test_close(api):
