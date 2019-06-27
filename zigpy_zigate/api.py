@@ -21,11 +21,11 @@ RESPONSES = {
     0x8010: (t.uint16_t, t.uint16_t),
     0x8048: (t.EUI64, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
-    }
+}
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
-    }
+}
 
 
 class ZiGate:

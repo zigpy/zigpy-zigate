@@ -30,8 +30,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self.version = r
 
         network_state = await self._api.get_network_state()
-
-#         print(network_state.result())
+        print(network_state.result())
 #         self._nwk = network_state[0]
 #         self._ieee = network_state[1]
 
@@ -167,4 +166,3 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):
         LOGGER.debug("Broadcast not implemented.")
-
