@@ -58,7 +58,7 @@ class ZiGate:
         if cmd in self._status_awaiting:
             fut = self._status_awaiting.pop(cmd)
             fut.set_result((data, lqi))
-        elif cmd in self._awaiting:
+        if cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
@@ -94,7 +94,7 @@ class ZiGate:
             raise
 
     async def set_raw_mode(self, enable=True):
-        data = t.serialize(enable, COMMANDS[0x0002])
+        data = t.serialize([enable], COMMANDS[0x0002])
         await self._command(0x0002, data),
 
     async def reset(self):
@@ -117,6 +117,18 @@ class ZiGate:
     async def remove_device(self, zigate_ieee, ieee):
         data = struct.pack('!QQ', zigate_ieee, ieee)
         await self._command(0x0026, data)
+
+    async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
+                                   cluster, payload, addr_mode=2, security=0):
+        '''
+        Send raw APS Data request
+        '''
+        length = len(payload)
+        radius = 0
+        data = struct.pack('!BHBBHHBBB{}s'.format(length), addr_mode, addr,
+                           src_ep, dst_ep, cluster, profile,
+                           security, radius, length, payload)
+        return await self._command(0x0530, data)
 
     def add_callback(self, cb):
         id_ = hash(cb)

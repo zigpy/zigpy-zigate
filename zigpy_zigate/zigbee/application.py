@@ -30,7 +30,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self.version = r
 
         network_state = await self._api.get_network_state()
-        print(network_state.result())
+        #print(network_state.result())
 #         self._nwk = network_state[0]
 #         self._ieee = network_state[1]
 
@@ -138,7 +138,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if expect_reply:
             reply_fut = asyncio.Future()
         self._pending[sequence] = (send_fut, reply_fut)
-        v = self._api.raw_aps_data_request('{:04x}'.format(nwk), src_ep, dst_ep, profile, cluster, data)
+        v = await self._api.raw_aps_data_request('{:04x}'.format(nwk), src_ep, dst_ep, profile, cluster, data)
         self._zigate_seq[sequence] = v.sequence
 
         if v.status != 0:
