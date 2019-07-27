@@ -20,6 +20,7 @@ RESPONSES = {
     0x8009: (t.uint16_t, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
     0x8048: (t.EUI64, t.uint8_t),
+    0x8701: (t.uint8_t, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
 }
 
@@ -52,7 +53,7 @@ class ZiGate:
         LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
                      binascii.hexlify(data), lqi)
         if cmd not in RESPONSES:
-            LOGGER.error('Received unhandled response %s', cmd)
+            LOGGER.error('Received unhandled response %s', hex(cmd))
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:

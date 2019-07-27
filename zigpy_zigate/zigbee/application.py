@@ -62,6 +62,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif msg == 0x8002:
+            print('8002', response)
             try:
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
                     device = self.get_device(nwk=response[5].address)
@@ -73,6 +74,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             except KeyError:
                 LOGGER.debug("No such device %s", response[5].address)
                 return
+            print('device', device)
             rssi = 0
             device.radio_details(lqi, rssi)
             tsn, command_id, is_reply, args = self.deserialize(device, response[3],
@@ -147,7 +149,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self._zigate_seq.pop(sequence)
             if expect_reply:
                 reply_fut.cancel()
-            raise DeliveryError("Message send failure %s" % (v.status, ))
+            raise DeliveryError("Message send failure %s" % (v[0], ))
 
         if expect_reply:
             # Wait for reply
