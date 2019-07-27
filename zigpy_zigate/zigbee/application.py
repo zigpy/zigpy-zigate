@@ -139,10 +139,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if expect_reply:
             reply_fut = asyncio.Future()
         self._pending[sequence] = (send_fut, reply_fut)
-        v = await self._api.raw_aps_data_request('{:04x}'.format(nwk), src_ep, dst_ep, profile, cluster, data)
-        self._zigate_seq[sequence] = v.sequence
+        v, lqi= await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data)
+        self._zigate_seq[sequence] = v[1]
 
-        if v.status != 0:
+        if v[0] != 0:
             self._pending.pop(sequence)
             self._zigate_seq.pop(sequence)
             if expect_reply:
