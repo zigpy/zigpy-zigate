@@ -16,7 +16,7 @@ RESPONSES = {
     0x004D: (t.uint16_t, t.EUI64, t.uint8_t),
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
-             t.Address, t.Address, t.LBytes),
+             t.Address, t.Address, t.Bytes),
     0x8009: (t.uint16_t, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
     0x8048: (t.EUI64, t.uint8_t),

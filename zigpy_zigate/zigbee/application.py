@@ -75,7 +75,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 return
             rssi = 0
             device.radio_details(lqi, rssi)
-            tsn, command_id, is_reply, args = self.deserialize(device, response[3],
+a            tsn, command_id, is_reply, args = self.deserialize(device, response[3],
                                                                response[2], response[-1])
             if is_reply:
                 self._handle_reply(device, response, tsn, command_id, args)
