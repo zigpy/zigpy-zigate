@@ -20,3 +20,6 @@ Documents that layout the serial protocol used for ZiGate serial interface commu
 - https://github.com/fairecasoimeme/ZiGate/tree/master/Protocol
 
 # WARNING : EXPERIMENTAL
+
+Require the zigate firmware 3.1a and later
+https://zigate.fr/tag/firmware/
