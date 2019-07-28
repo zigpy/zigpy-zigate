@@ -14,7 +14,7 @@ def test_deserialize():
     assert result[3] == extra
 
     extra = b'\xBE\xEF'
-    data = b'\x00\x00\x01\x00\x01\x01\x01\x02\x12\x34\x02\xab\xcd\x02\x01\x00'
+    data = b'\x00\x00\x01\x00\x01\x01\x01\x02\x12\x34\x02\xab\xcd\x01\x00'
     schema = RESPONSES[0x8002]
     result, rest = t.deserialize(data + extra, schema)
     assert result[0] == 0x00

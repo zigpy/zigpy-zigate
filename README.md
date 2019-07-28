@@ -19,4 +19,4 @@ Documents that layout the serial protocol used for ZiGate serial interface commu
 
 - https://github.com/fairecasoimeme/ZiGate/tree/master/Protocol
 
-# WARNING : EXPERIMENTAL - NOT WORKING YET
+# WARNING : EXPERIMENTAL
