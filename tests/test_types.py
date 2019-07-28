@@ -24,8 +24,8 @@ def test_deserialize():
     assert result[4] == 0x01
     assert result[5] == t.Address(address_mode=t.ADDRESS_MODE.NWK, address=0x1234)
     assert result[6] == t.Address(address_mode=t.ADDRESS_MODE.NWK, address=0xabcd)
-    assert result[7] == b'\x01\x00'
-    assert rest == extra
+    assert result[7] == b'\x01\x00\xBE\xEF'
+    assert rest == b''
 
     data = b'\x00\x01\x01\x02\x12\x34\xff'
     schema = RESPONSES[0x8702]
