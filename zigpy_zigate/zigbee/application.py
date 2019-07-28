@@ -38,6 +38,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if auto_form:
             await self.form_network()
 
+    async def shutdown(self):
+        """Shutdown application."""
+        self._api.close()
+
     async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
         await self._api.set_channel(channel)
         if pan_id:
@@ -116,19 +120,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             LOGGER.warning("Unexpected message send failure")
         except asyncio.futures.InvalidStateError as exc:
             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
-#
-#     def _handle_frame_sent(self, message_type, destination, aps_frame, message_tag, status, message):
-#         try:
-#             send_fut, reply_fut = self._pending[message_tag]
-#             # Sometimes messageSendResult and a reply come out of order
-#             # If we've already handled the reply, delete pending
-#             if reply_fut is None or reply_fut.done():
-#                 self._pending.pop(message_tag)
-#             send_fut.set_result(True)
-#         except KeyError:
-#             LOGGER.warning("Unexpected message send notification")
-#         except asyncio.futures.InvalidStateError as exc:
-#             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
 
     @zigpy.util.retryable_request
     async def request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply=True, timeout=10):
@@ -139,7 +130,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if expect_reply:
             reply_fut = asyncio.Future()
         self._pending[sequence] = (send_fut, reply_fut)
-        v, lqi= await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data)
+        v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data)
         self._zigate_seq[sequence] = v[1]
 
         if v[0] != 0:
