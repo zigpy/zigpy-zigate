@@ -19,6 +19,13 @@ Documents that layout the serial protocol used for ZiGate serial interface commu
 
 - https://github.com/fairecasoimeme/ZiGate/tree/master/Protocol
 
+# Releases via PyPI
+Tagged versions are also released via PyPI
+
+- https://pypi.org/project/zigpy-zigate/
+- https://pypi.org/project/zigpy-zigate/#history
+- https://pypi.org/project/zigpy-zigate/#files
+
 # WARNING : EXPERIMENTAL
 
 Require the zigate firmware 3.1a and later
