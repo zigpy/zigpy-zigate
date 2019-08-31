@@ -3,7 +3,6 @@ from unittest import mock
 import pytest
 import serial_asyncio
 from zigpy_zigate import api as zigate_api
-import zigpy_zigate.types as t
 
 
 @pytest.fixture
