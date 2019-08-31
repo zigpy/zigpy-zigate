@@ -26,7 +26,7 @@ RESPONSES = {
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
-    0x0026: (t.EUI64, t.EUI64),
+    0x0026: (t.uint64_t, t.uint64_t),
 }
 
 
