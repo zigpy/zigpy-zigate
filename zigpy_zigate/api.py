@@ -114,7 +114,7 @@ class ZiGate:
 
     async def permit_join(self, duration=60):
         data = struct.pack('!HBB', 0xfffc, duration, 0)
-        await self.command(0x0049, data)
+        return await self.command(0x0049, data)
 
     async def start_network(self):
         return await self.command(0x0024, wait_response=0x8024)

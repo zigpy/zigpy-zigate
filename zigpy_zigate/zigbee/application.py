@@ -175,7 +175,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
-        await self._api.permit_join(time_s)
+        status = await self._api.permit_join(time_s)
+        if status[0] != 0:
+            self._api.reset()
 
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):
