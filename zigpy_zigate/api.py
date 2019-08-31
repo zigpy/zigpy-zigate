@@ -115,7 +115,7 @@ class ZiGate:
 
     async def remove_device(self, zigate_ieee, ieee):
         data = struct.pack('!QQ', zigate_ieee, ieee)
-        await self.command(0x0026, data)
+        return await self.command(0x0026, data)
 
     async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
                                    cluster, payload, addr_mode=2, security=0):
