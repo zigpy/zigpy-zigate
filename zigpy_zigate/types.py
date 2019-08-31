@@ -125,7 +125,7 @@ class EUI64(zigpy.types.EUI64):
 
     def serialize(self):
         assert self._length == len(self)
-        return b''.join([i.serialize() for i in self])
+        return b''.join([uint8_t(i).serialize() for i in self])
 
 
 class ADDRESS_MODE(uint8_t, enum.Enum):
