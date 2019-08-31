@@ -26,7 +26,8 @@ RESPONSES = {
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
-    0x0026: (t.uint64_t, t.uint64_t),
+    0x0020: (t.uint64_t,),
+    0x0026: (t.EUI64, t.EUI64),
 }
 
 
@@ -107,7 +108,7 @@ class ZiGate:
         await self.command(0x0021, mask),
 
     async def set_extended_panid(self, extended_pan_id):
-        data = struct.pack('!Q', extended_pan_id)
+        data = t.serialize([extended_pan_id], COMMANDS[0x0020])
         await self.command(0x0020, data)
 
     async def permit_join(self, duration=60):
