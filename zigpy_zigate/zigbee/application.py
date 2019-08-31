@@ -51,7 +51,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self._api.set_extended_panid(extended_pan_id)
 
         network_formed, lqi = await self._api.start_network()
-        if network_formed[0] in (0, 1):
+        if network_formed[0] in (0, 1, 4):
             LOGGER.info('Network started %s %s',
                         network_formed[1],
                         network_formed[2])
