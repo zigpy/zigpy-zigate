@@ -49,6 +49,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #             self._api.set_panid(pan_id)
         if extended_pan_id:
             await self._api.set_extended_panid(extended_pan_id)
+            
+        await self._api.start_network()
 
     async def force_remove(self, dev):
         await self._api.remove_device(self._ieee, dev.ieee)

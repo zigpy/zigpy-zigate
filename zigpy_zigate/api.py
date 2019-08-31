@@ -115,6 +115,9 @@ class ZiGate:
         data = struct.pack('!HBB', 0xfffc, duration, 0)
         await self.command(0x0049, data)
 
+    async def start_network(self):
+        return await self.command(0x0024, wait_response=0x8024)
+
     async def remove_device(self, zigate_ieee, ieee):
         data = t.serialize([zigate_ieee, ieee], COMMANDS[0x0026])
         return await self.command(0x0026, data)
