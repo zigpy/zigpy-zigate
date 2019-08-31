@@ -58,6 +58,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self._nwk = network_formed[1]
             self._ieee = network_formed[2]
         else:
+            LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
             tries = 3
             while tries > 0:
                 asyncio.sleep(1)
