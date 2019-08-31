@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from zigpy.exceptions import DeliveryError
+import zigpy.device
 import zigpy.application
 import zigpy.util
 from zigpy_zigate import types as t
@@ -38,6 +39,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._nwk = network_state[0]
         self._ieee = network_state[1]
 
+        dev = zigpy.device.Device(self, self._ieee, self._nwk)
+        self.devices[dev.ieee] = dev
+
     async def shutdown(self):
         """Shutdown application."""
         self._api.close()
@@ -61,7 +65,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
             tries = 3
             while tries > 0:
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
                 tries -= 1
                 network_state, lqi = await self._api.get_network_state()
                 if network_state and \
@@ -176,9 +180,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
-        status = await self._api.permit_join(time_s)
+        status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
-            self._api.reset()
+            await self._api.reset()
 
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):
