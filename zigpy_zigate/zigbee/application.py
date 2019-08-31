@@ -58,8 +58,18 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self._nwk = network_formed[1]
             self._ieee = network_formed[2]
         else:
-            LOGGER.warning('Failed to start network error %s', network_formed[0])
-            await self._api.reset()
+            tries = 3
+            while tries > 0:
+                asyncio.sleep(1)
+                tries -= 1
+                network_state, lqi = await self._api.get_network_state()
+                if network_state and \
+                   network_state[3] != 0 and \
+                   network_state[0] != 'ffff':
+                    break
+            if tries <= 0:
+                LOGGER.error('Failed to start network error %s', network_formed[0])
+                await self._api.reset()
 
     async def force_remove(self, dev):
         await self._api.remove_device(self._ieee, dev.ieee)
