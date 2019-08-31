@@ -26,6 +26,7 @@ RESPONSES = {
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
+    0x0026: (t.EUI64, t.EUI64),
 }
 
 
@@ -114,7 +115,7 @@ class ZiGate:
         await self.command(0x0049, data)
 
     async def remove_device(self, zigate_ieee, ieee):
-        data = struct.pack('!QQ', zigate_ieee, ieee)
+        data = t.serialize([zigate_ieee, ieee], COMMANDS[0x0026])
         return await self.command(0x0026, data)
 
     async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
