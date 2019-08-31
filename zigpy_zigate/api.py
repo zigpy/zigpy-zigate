@@ -100,7 +100,7 @@ class ZiGate:
         await self.command(0x0002, data)
 
     async def reset(self):
-        await self._command(0x0011, wait_status=False)
+        self._command(0x0011, wait_status=False)
 
     async def set_channel(self, channel):
         channels = [channel]
