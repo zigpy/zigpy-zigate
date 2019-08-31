@@ -49,8 +49,17 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 #             self._api.set_panid(pan_id)
         if extended_pan_id:
             await self._api.set_extended_panid(extended_pan_id)
-            
-        await self._api.start_network()
+
+        network_formed, lqi = await self._api.start_network()
+        if network_formed[0] in (0, 1):
+            LOGGER.info('Network started %s %s',
+                        network_formed[1],
+                        network_formed[2])
+            self._nwk = network_formed[1]
+            self._ieee = network_formed[2]
+        else:
+            LOGGER.warning('Failed to start network error %s', network_formed[0])
+            self._api.reset()
 
     async def force_remove(self, dev):
         await self._api.remove_device(self._ieee, dev.ieee)
