@@ -73,7 +73,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 await self._api.reset()
 
     async def force_remove(self, dev):
-        await self._api.remove_device(self._ieee, dev.ieee)
+        pass
+#         await self._api.remove_device(self._ieee, dev.ieee)
 
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
