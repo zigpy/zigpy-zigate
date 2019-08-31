@@ -31,12 +31,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         version = '{}.{}'.format(version[0], version[1:])
         self.version = version
 
+        if auto_form:
+            await self.form_network()
+
         network_state, lqi = await self._api.get_network_state()
         self._nwk = network_state[0]
         self._ieee = network_state[1]
-
-        if auto_form:
-            await self.form_network()
 
     async def shutdown(self):
         """Shutdown application."""
@@ -51,7 +51,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             await self._api.set_extended_panid(extended_pan_id)
 
     async def force_remove(self, dev):
-        self._api.remove_device(self._ieee, dev.ieee)
+        await self._api.remove_device(self._ieee, dev.ieee)
 
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))

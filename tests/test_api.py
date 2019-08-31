@@ -3,6 +3,7 @@ from unittest import mock
 import pytest
 import serial_asyncio
 from zigpy_zigate import api as zigate_api
+import zigpy_zigate.types as t
 
 
 @pytest.fixture
@@ -35,3 +36,10 @@ def test_close(api):
     api._uart.close = mock.MagicMock()
     api.close()
     assert api._uart.close.call_count == 1
+
+
+@pytest.mark.asyncio
+def test_remove_device(api):
+    zigate_ieee = t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
+    ieee = t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf1')
+    api.remove_device(zigate_ieee, ieee)
