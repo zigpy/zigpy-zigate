@@ -39,7 +39,7 @@ def test_close(api):
 
 
 @pytest.mark.asyncio
-def test_remove_device(api):
+async def test_remove_device(api):
     zigate_ieee = t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
     ieee = t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf1')
-    api.remove_device(zigate_ieee, ieee)
+    await api.remove_device(zigate_ieee, ieee)
