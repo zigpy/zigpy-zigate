@@ -132,6 +132,11 @@ class EUI64(zigpy.types.EUI64):
 class NWK(HexRepr, uint16_t):
     _hex_len = 4
 
+    @classmethod
+    def deserialize(cls, data):
+        r, data = super().deserialize(data)
+        return cls(r), data
+
 
 class ADDRESS_MODE(uint8_t, enum.Enum):
     # Address modes used in zigate protocol
@@ -152,7 +157,7 @@ class Struct:
                     setattr(self, field[0], getattr(args[0], field[0]))
         elif len(args) == len(self._fields):
             for arg, field in zip(args, self._fields):
-                setattr(self, field[0], arg)
+                setattr(self, field[0], field[1](arg))
         elif kwargs:
             for k, v in kwargs.items():
                 setattr(self, k, v)
