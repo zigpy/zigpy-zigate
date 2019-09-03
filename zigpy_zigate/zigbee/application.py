@@ -39,7 +39,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._nwk = network_state[0]
         self._ieee = network_state[1]
 
-        dev = zigpy.device.Device(self, self._ieee, self._nwk)
+        dev = ZiGateDevice(self, self._ieee, self._nwk)
         self.devices[dev.ieee] = dev
 
     async def shutdown(self):
@@ -184,3 +184,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
             await self._api.reset()
+
+
+class ZiGateDevice(zigpy.device.Device):
+    @property
+    def manufacturer(self):
+        return "ZiGate"
+
+    @property
+    def model(self):
+        return 'ZiGate'
