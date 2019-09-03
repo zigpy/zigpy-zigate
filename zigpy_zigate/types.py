@@ -1,5 +1,6 @@
 import enum
 import zigpy.types
+from zigpy.types import HexRepr
 
 
 def deserialize(data, schema):
@@ -128,6 +129,10 @@ class EUI64(zigpy.types.EUI64):
         return b''.join([uint8_t(i).serialize() for i in self])
 
 
+class NWK(HexRepr, uint16_t):
+    _hex_len = 4
+
+
 class ADDRESS_MODE(uint8_t, enum.Enum):
     # Address modes used in zigate protocol
 
@@ -193,7 +198,7 @@ class Address(Struct):
         setattr(r, field_name, mode)
         v = None
         if mode in [ADDRESS_MODE.GROUP, ADDRESS_MODE.NWK]:
-            v, data = uint16_t.deserialize(data)
+            v, data = NWK.deserialize(data)
         elif mode == ADDRESS_MODE.IEEE:
             v, data = EUI64.deserialize(data)
         setattr(r, cls._fields[1][0], v)

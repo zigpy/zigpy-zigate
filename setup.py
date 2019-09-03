@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="zigpy-zigate",
-    version="0.2.0",
+    version="0.3.0",
     description="A library which communicates with ZiGate radios for zigpy",
     url="http://github.com/doudz/zigpy-zigate",
     author="Sébastien RAMAGE",

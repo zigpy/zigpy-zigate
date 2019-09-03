@@ -66,3 +66,11 @@ def test_EUI64():
     assert ieee == t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
     data2 = ieee.serialize()
     assert data2 == b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
+
+
+def test_NWK():
+    data = b'\x124'
+    nwk, rest = t.NWK.deserialize(data)
+    assert nwk == t.NWK(0x1234)
+    data2 = nwk.serialize()
+    assert data2 == data

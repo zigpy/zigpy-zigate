@@ -2,7 +2,6 @@ import logging
 import asyncio
 import binascii
 import functools
-import struct
 
 from . import uart
 from . import types as t
@@ -13,13 +12,13 @@ COMMAND_TIMEOUT = 3.0
 ZIGATE_BAUDRATE = 115200
 
 RESPONSES = {
-    0x004D: (t.uint16_t, t.EUI64, t.uint8_t),
+    0x004D: (t.NWK, t.EUI64, t.uint8_t),
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.Address, t.Address, t.Bytes),
-    0x8009: (t.uint16_t, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
+    0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
-    0x8024: (t.uint8_t, t.uint16_t, t.EUI64, t.uint8_t),
+    0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     0x8048: (t.EUI64, t.uint8_t),
     0x8701: (t.uint8_t, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
@@ -28,7 +27,10 @@ RESPONSES = {
 COMMANDS = {
     0x0002: (t.uint8_t,),
     0x0020: (t.uint64_t,),
+    0x0021: (t.uint32_t,),
     0x0026: (t.EUI64, t.EUI64),
+    0x0049: (t.NWK, t.uint8_t, t.uint8_t),
+    0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
 }
 
 
@@ -42,9 +44,8 @@ class ZiGate:
         self.network_state = None
 
     async def connect(self, device, baudrate=ZIGATE_BAUDRATE):
-        baudrate = ZIGATE_BAUDRATE  # fix baudrate for zigate
         assert self._uart is None
-        self._uart = await uart.connect(device, baudrate, self)
+        self._uart = await uart.connect(device, ZIGATE_BAUDRATE, self)
 
     def close(self):
         return self._uart.close()
@@ -105,15 +106,15 @@ class ZiGate:
     async def set_channel(self, channel):
         channels = [channel]
         mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
-        mask = struct.pack('!I', mask)
-        await self.command(0x0021, mask),
+        data = t.serialize([mask], COMMANDS[0x0021])
+        await self.command(0x0021, data),
 
     async def set_extended_panid(self, extended_pan_id):
         data = t.serialize([extended_pan_id], COMMANDS[0x0020])
         await self.command(0x0020, data)
 
     async def permit_join(self, duration=60):
-        data = struct.pack('!HBB', 0xfffc, duration, 0)
+        data = t.serialize([0xfffc, duration, 0], COMMANDS[0x0049])
         return await self.command(0x0049, data)
 
     async def start_network(self):
@@ -128,11 +129,10 @@ class ZiGate:
         '''
         Send raw APS Data request
         '''
-        length = len(payload)
         radius = 0
-        data = struct.pack('!BHBBHHBBB{}s'.format(length), addr_mode, addr,
+        data = t.serialize([addr_mode, addr,
                            src_ep, dst_ep, cluster, profile,
-                           security, radius, length, payload)
+                           security, radius, payload], COMMANDS[0x0530])
         return await self.command(0x0530, data)
 
     def add_callback(self, cb):
@@ -146,7 +146,7 @@ class ZiGate:
         return self._callbacks.pop(id_)
 
     def handle_callback(self, *args):
-        for callback_id, handler in self._callbacks.items():
+        for handler in self._callbacks.values():
             try:
                 handler(*args)
             except Exception as e:

@@ -131,7 +131,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         except asyncio.futures.InvalidStateError as exc:
             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
             # We've already handled, don't drop through to device handler
-            return
+            # EDIT : Temporary remove return since we can receive more that one reply with the same tsn
+            # return
 
         self.handle_message(sender, True, response['profile_id'],
                             response['cluster_id'], response['source_endpoint'], response['destination_endpoint'],
@@ -183,7 +184,3 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
             await self._api.reset()
-
-    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
-                        sequence, data, broadcast_address):
-        LOGGER.debug("Broadcast not implemented.")
