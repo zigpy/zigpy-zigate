@@ -134,8 +134,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             # EDIT : Temporary remove return since we can receive more that one reply with the same tsn
             # return
 
-        self.handle_message(sender, True, response['profile_id'],
-                            response['cluster_id'], response['source_endpoint'], response['destination_endpoint'],
+        self.handle_message(sender, True, response[1],
+                            response[2], response[3], response[4],
                             tsn, command_id, args)
 
     def _handle_frame_failure(self, message_tag, status):
