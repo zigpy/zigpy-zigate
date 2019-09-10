@@ -29,6 +29,7 @@ Tagged versions are also released via PyPI
 # Port configuration
 
 - To configure __usb__ ZiGate port, just specify the port, example : `/dev/ttyUSB0`
+    - Alternatively you could set port to `auto` to enable automatic usb port discovery
 - To configure __pizigate__ port, prefix the port with `pizigate:`, example : `pizigate:/dev/serial0`
 - To configure __wifi__ ZiGate, specify IP address and port, example : `socket://192.168.1.10:9999` 
 
