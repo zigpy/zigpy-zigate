@@ -1,10 +1,11 @@
 """Setup module for zigpy-zigate"""
 
 from setuptools import find_packages, setup
+from zigpy_zigate import __version__
 
 setup(
     name="zigpy-zigate",
-    version="0.3.0",
+    version=__version__,
     description="A library which communicates with ZiGate radios for zigpy",
     url="http://github.com/doudz/zigpy-zigate",
     author="Sébastien RAMAGE",
