@@ -185,6 +185,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if status[0] != 0:
             await self._api.reset()
 
+    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
+                        sequence, data, broadcast_address):
+        raise NotImplementedError
+
 
 class ZiGateDevice(zigpy.device.Device):
     @property
