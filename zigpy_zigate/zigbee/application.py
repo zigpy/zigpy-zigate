@@ -187,7 +187,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
                         sequence, data, broadcast_address):
-        raise NotImplementedError
+        LOGGER.debug("Broadcast not implemented.")
 
 
 class ZiGateDevice(zigpy.device.Device):
