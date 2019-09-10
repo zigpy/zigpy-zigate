@@ -117,6 +117,19 @@ async def connect(port, baudrate, api, loop=None):
     if port.startswith('pizigate:'):
         await set_pizigate_running_mode()
         port = port.split(':', 1)[1]
+    elif port == 'auto':
+        import serial.tools.list_ports
+        devices = list(serial.tools.list_ports.grep('ZiGate'))
+        if devices:
+            port = devices[0].device
+            LOGGER.info('ZiGate found at %s', port)
+        else:
+            devices = list(serial.tools.list_ports.grep('067b:2303|CP2102'))
+            if devices:
+                port = devices[0].device
+                LOGGER.info('ZiGate probably found at %s', port)
+            else:
+                LOGGER.error('Unable to find ZiGate using auto mode')
 
     _, protocol = await serial_asyncio.create_serial_connection(
         loop,
