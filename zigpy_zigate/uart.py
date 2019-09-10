@@ -134,11 +134,14 @@ async def connect(port, baudrate, api, loop=None):
 
 
 async def set_pizigate_running_mode():
-    import RPi.GPIO as GPIO
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(27, GPIO.OUT)  # GPIO2
-    GPIO.output(27, GPIO.HIGH)  # GPIO2
-    GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
-    asyncio.sleep(0.5)
-    GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
-    asyncio.sleep(0.5)
+    try:
+        import RPi.GPIO as GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(27, GPIO.OUT)  # GPIO2
+        GPIO.output(27, GPIO.HIGH)  # GPIO2
+        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
+        asyncio.sleep(0.5)
+        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
+        asyncio.sleep(0.5)
+    except Exception:
+        LOGGER.warning('Unable to set PiZiGate GPIO, please check configuration')
