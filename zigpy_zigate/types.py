@@ -1,5 +1,4 @@
 import enum
-import zigpy.types
 from zigpy.types import HexRepr
 from zigpy.types import EUI64
 
@@ -124,7 +123,7 @@ class uint64_t(uint_t):
 #     def deserialize(cls, data):
 #         r, data = super().deserialize(data)
 #         return cls(r[::-1]), data
-# 
+#
 #     def serialize(self):
 #         assert self._length == len(self)
 #         return b''.join([uint8_t(i).serialize() for i in self])
