@@ -43,7 +43,7 @@ def test_deserialize():
     assert result[1] == 0x01
     assert result[2] == 0x01
     assert result[3] == t.Address(address_mode=t.ADDRESS_MODE.IEEE,
-                                  address=t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'))
+                                  address=t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0])
     assert result[4] == 0xff
 
 
@@ -63,7 +63,7 @@ def test_EUI64():
     data = b'\x12\x34\x56\x78\x9a\xbc\xde\xf0\x00'
     ieee, rest = t.EUI64.deserialize(data)
     assert rest == b'\x00'
-    assert ieee == t.EUI64(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')
+    assert ieee == t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0]
     data2 = ieee.serialize()
     assert data2 == b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
 

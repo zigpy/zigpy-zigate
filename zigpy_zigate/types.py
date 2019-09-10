@@ -1,6 +1,7 @@
 import enum
 import zigpy.types
 from zigpy.types import HexRepr
+from zigpy.types import EUI64
 
 
 def deserialize(data, schema):
@@ -118,15 +119,15 @@ class uint64_t(uint_t):
     _size = 8
 
 
-class EUI64(zigpy.types.EUI64):
-    @classmethod
-    def deserialize(cls, data):
-        r, data = super().deserialize(data)
-        return cls(r[::-1]), data
-
-    def serialize(self):
-        assert self._length == len(self)
-        return b''.join([uint8_t(i).serialize() for i in self])
+# class EUI64(zigpy.types.EUI64):
+#     @classmethod
+#     def deserialize(cls, data):
+#         r, data = super().deserialize(data)
+#         return cls(r[::-1]), data
+# 
+#     def serialize(self):
+#         assert self._length == len(self)
+#         return b''.join([uint8_t(i).serialize() for i in self])
 
 
 class NWK(HexRepr, uint16_t):
