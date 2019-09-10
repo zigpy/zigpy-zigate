@@ -1,6 +1,7 @@
 import asyncio
 import logging
-import serial
+import serial  # noqa
+import serial.tools.list_ports
 import binascii
 import struct
 
@@ -118,7 +119,6 @@ async def connect(port, baudrate, api, loop=None):
         await set_pizigate_running_mode()
         port = port.split(':', 1)[1]
     elif port == 'auto':
-        import serial.tools.list_ports
         devices = list(serial.tools.list_ports.grep('ZiGate'))
         if devices:
             port = devices[0].device
