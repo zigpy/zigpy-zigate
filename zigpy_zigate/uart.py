@@ -114,6 +114,10 @@ async def connect(port, baudrate, api, loop=None):
     connected_future = asyncio.Future()
     protocol = Gateway(api, connected_future)
 
+    if port.startswith('pizigate:'):
+        await set_pizigate_running_mode()
+        port = port.split(':', 1)[1]
+
     _, protocol = await serial_asyncio.create_serial_connection(
         loop,
         lambda: protocol,
@@ -127,3 +131,14 @@ async def connect(port, baudrate, api, loop=None):
     await connected_future
 
     return protocol
+
+
+async def set_pizigate_running_mode():
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(27, GPIO.OUT)  # GPIO2
+    GPIO.output(27, GPIO.HIGH)  # GPIO2
+    GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
+    asyncio.sleep(0.5)
+    GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
+    asyncio.sleep(0.5)
