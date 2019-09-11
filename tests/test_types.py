@@ -66,6 +66,7 @@ def test_EUI64():
     assert ieee == t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0]
     data2 = ieee.serialize()
     assert data2 == b'\x12\x34\x56\x78\x9a\xbc\xde\xf0'
+    assert str(ieee) == '12:34:45:67:89:ab:cd:ef'
 
 
 def test_NWK():
