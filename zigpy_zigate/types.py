@@ -11,7 +11,7 @@ def _sqlite_adapters():
     sqlite3.register_adapter(EUI64, adapt_ieee)
 
     def convert_ieee(s):
-        ieee = [uint8_t(p, base=16) for p in s.split(b':')]
+        ieee = [uint8_t(p, base=16) for p in s.split(b':')[::-1]]
         return EUI64(ieee)
     sqlite3.register_converter("ieee", convert_ieee)
 

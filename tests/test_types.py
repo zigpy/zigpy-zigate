@@ -80,5 +80,5 @@ def test_NWK():
 def test_sqlite3_converter():
     ieee = t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0]
     s = repr(ieee).encode()
-    ieee2 = t.EUI64([t.uint8_t(p, base=16) for p in s.split(b':')])
+    ieee2 = t.EUI64([t.uint8_t(p, base=16) for p in s.split(b':')[::-1]])
     assert ieee == ieee2
