@@ -5,14 +5,17 @@ import sqlite3
 import zigpy.appdb  # noqa
 
 
-def _sqlite_adapters():
-    def adapt_ieee(eui64):
-        return repr(eui64)
-    sqlite3.register_adapter(EUI64, adapt_ieee)
+def adapt_ieee(eui64):
+    return repr(eui64)
 
-    def convert_ieee(s):
-        ieee = [uint8_t(p, base=16) for p in s.split(b':')[::-1]]
-        return EUI64(ieee)
+
+def convert_ieee(s):
+    ieee = [uint8_t(p, base=16) for p in s.split(b':')[::-1]]
+    return EUI64(ieee)
+
+
+def _sqlite_adapters():
+    sqlite3.register_adapter(EUI64, adapt_ieee)
     sqlite3.register_converter("ieee", convert_ieee)
 
 
