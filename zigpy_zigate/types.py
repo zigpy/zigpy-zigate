@@ -1,5 +1,5 @@
 import enum
-from zigpy.types import HexRepr, basic
+from zigpy.types import HexRepr
 import zigpy.types
 import sqlite3
 import zigpy.appdb  # noqa
