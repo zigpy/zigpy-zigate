@@ -75,3 +75,10 @@ def test_NWK():
     assert nwk == t.NWK(0x1234)
     data2 = nwk.serialize()
     assert data2 == data
+
+
+def test_sqlite3_converter():
+    ieee = t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0]
+    s = repr(ieee)
+    ieee2 = t.EUI64([t.uint8_t(p, base=16) for p in s.split(b':')])
+    assert ieee == ieee2
