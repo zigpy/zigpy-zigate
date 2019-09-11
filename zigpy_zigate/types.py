@@ -2,7 +2,7 @@ import enum
 from zigpy.types import HexRepr, basic
 import zigpy.types
 import sqlite3
-import zigpy.appdb  #noqa
+import zigpy.appdb  # noqa
 
 
 def _sqlite_adapters():
