@@ -1,6 +1,22 @@
 import enum
-from zigpy.types import HexRepr
-from zigpy.types import EUI64
+from zigpy.types import HexRepr, basic
+import zigpy.types
+import sqlite3
+import zigpy.appdb  #noqa
+
+
+def _sqlite_adapters():
+    def adapt_ieee(eui64):
+        return repr(eui64)
+    sqlite3.register_adapter(EUI64, adapt_ieee)
+
+    def convert_ieee(s):
+        ieee = [uint8_t(p, base=16) for p in s.split(b':')]
+        return EUI64(ieee)
+    sqlite3.register_converter("ieee", convert_ieee)
+
+
+zigpy.appdb._sqlite_adapters = _sqlite_adapters
 
 
 def deserialize(data, schema):
@@ -45,7 +61,8 @@ class int_t(int):
     @classmethod
     def deserialize(cls, data, byteorder='big'):
         # Work around https://bugs.python.org/issue23640
-        r = cls(int.from_bytes(data[:cls._size], byteorder, signed=cls._signed))
+        r = cls(int.from_bytes(data[:cls._size],
+                               byteorder, signed=cls._signed))
         data = data[cls._size:]
         return r, data
 
@@ -118,15 +135,22 @@ class uint64_t(uint_t):
     _size = 8
 
 
-# class EUI64(zigpy.types.EUI64):
-#     @classmethod
-#     def deserialize(cls, data):
-#         r, data = super().deserialize(data)
-#         return cls(r[::-1]), data
-#
-#     def serialize(self):
-#         assert self._length == len(self)
-#         return b''.join([uint8_t(i).serialize() for i in self])
+class EUI64(zigpy.types.EUI64, basic.fixed_list(8, uint8_t)):
+    # EUI 64-bit ID (an IEEE address).
+    @classmethod
+    def deserialize(cls, data):
+        r, data = super().deserialize(data)
+        return cls(r[::-1]), data
+
+    def serialize(self):
+        assert self._length == len(self)
+        return b''.join([i.serialize() for i in self[::-1]])
+
+    def __repr__(self):
+        return ':'.join('%02x' % i for i in self)
+
+    def __hash__(self):
+        return hash(repr(self))
 
 
 class NWK(HexRepr, uint16_t):
