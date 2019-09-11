@@ -144,7 +144,7 @@ class EUI64(zigpy.types.EUI64, basic.fixed_list(8, uint8_t)):
 
     def serialize(self):
         assert self._length == len(self)
-        return b''.join([i.serialize() for i in self[::-1]])
+        return b''.join([i.serialize() for i in self])
 
     def __repr__(self):
         return ':'.join('%02x' % i for i in self)
