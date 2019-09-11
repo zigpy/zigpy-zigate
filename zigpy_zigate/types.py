@@ -135,22 +135,9 @@ class uint64_t(uint_t):
     _size = 8
 
 
-class EUI64(zigpy.types.EUI64, basic.fixed_list(8, uint8_t)):
-    # EUI 64-bit ID (an IEEE address).
-    @classmethod
-    def deserialize(cls, data):
-        r, data = super().deserialize(data)
-        return cls(r[::-1]), data
-
-    def serialize(self):
-        assert self._length == len(self)
-        return b''.join([i.serialize() for i in self])
-
+class EUI64(zigpy.types.EUI64):
     def __repr__(self):
-        return ':'.join('%02x' % i for i in self)
-
-    def __hash__(self):
-        return hash(repr(self))
+        return ':'.join('%02x' % i for i in self[::-1])
 
 
 class NWK(HexRepr, uint16_t):
