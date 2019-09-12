@@ -1,7 +1,6 @@
 """Setup module for zigpy-zigate"""
 
 from setuptools import find_packages, setup
-import re
 from zigpy_zigate import __version__
 
 
