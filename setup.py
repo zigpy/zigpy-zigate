@@ -47,10 +47,9 @@ def is_raspberry_pi(raise_on_errors=False):
     return True
 
 
-requires = [
-    'pyserial-asyncio',
-    'zigpy-homeassistant',  # https://github.com/zigpy/zigpy/issues/190
-    ]
+requires = ['pyserial-asyncio',
+            'zigpy-homeassistant',  # https://github.com/zigpy/zigpy/issues/190
+            ]
 if is_raspberry_pi():
     requires.append('RPi.GPIO')
 
