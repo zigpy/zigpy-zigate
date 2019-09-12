@@ -5,44 +5,54 @@ import re
 from zigpy_zigate import __version__
 
 
-# extracted from https://github.com/adafruit/Adafruit_Python_GPIO/blob/master/Adafruit_GPIO/Platform.py
-def pi_version():
-    """Detect the version of the Raspberry Pi.  Returns either 1, 2 or
-    None depending on if it's a Raspberry Pi 1 (model A, B, A+, B+),
-    Raspberry Pi 2 (model B+), or not a Raspberry Pi.
+# extracted from https://raspberrypi.stackexchange.com/questions/5100/detect-that-a-python-program-is-running-on-the-pi
+def is_raspberry_pi(raise_on_errors=False):
+    """Checks if Raspberry PI.
+
+    :return:
     """
-    # Check /proc/cpuinfo for the Hardware field value.
-    # 2708 is pi 1
-    # 2709 is pi 2
-    # 2835 is pi 3 on 4.9.x kernel
-    # Anything else is not a pi.
-    with open('/proc/cpuinfo', 'r') as infile:
-        cpuinfo = infile.read()
-    # Match a line like 'Hardware   : BCM2709'
-    match = re.search('^Hardware\s+:\s+(\w+)$', cpuinfo,
-                      flags=re.MULTILINE | re.IGNORECASE)
-    if not match:
-        # Couldn't find the hardware, assume it isn't a pi.
-        return None
-    if match.group(1) == 'BCM2708':
-        # Pi 1
-        return 1
-    elif match.group(1) == 'BCM2709':
-        # Pi 2
-        return 2
-    elif match.group(1) == 'BCM2835':
-        # Pi 3 / Pi on 4.9.x kernel
-        return 3
-    else:
-        # Something else, not a pi.
-        return None
+    try:
+        with open('/proc/cpuinfo', 'r') as cpuinfo:
+            found = False
+            for line in cpuinfo:
+                if line.startswith('Hardware'):
+                    found = True
+                    label, value = line.strip().split(':', 1)
+                    value = value.strip()
+                    if value not in (
+                        'BCM2708',
+                        'BCM2709',
+                        'BCM2835',
+                        'BCM2836'
+                    ):
+                        if raise_on_errors:
+                            raise ValueError(
+                                'This system does not appear to be a '
+                                'Raspberry Pi.'
+                            )
+                        else:
+                            return False
+            if not found:
+                if raise_on_errors:
+                    raise ValueError(
+                        'Unable to determine if this system is a Raspberry Pi.'
+                    )
+                else:
+                    return False
+    except IOError:
+        if raise_on_errors:
+            raise ValueError('Unable to open `/proc/cpuinfo`.')
+        else:
+            return False
+
+    return True
 
 
 requires = [
     'pyserial-asyncio',
     'zigpy-homeassistant',  # https://github.com/zigpy/zigpy/issues/190
     ]
-if pi_version() is not None:
+if is_raspberry_pi():
     requires.append('RPi.GPIO')
 
 
