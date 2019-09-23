@@ -139,6 +139,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         # Commented out for now
         # Currently (Firmware 3.1a) only send APS Data confirm in case of failure
+        # https://github.com/fairecasoimeme/ZiGate/issues/239
 #         try:
 #             v = await asyncio.wait_for(send_fut, 120)
 #         except asyncio.TimeoutError:
