@@ -34,6 +34,10 @@ COMMANDS = {
 }
 
 
+class NoResponseError(Exception):
+    pass
+
+
 class ZiGate:
     def __init__(self):
         self._uart = None
@@ -77,7 +81,7 @@ class ZiGate:
             )
         except asyncio.TimeoutError:
             LOGGER.warning("No response to command 0x{:04x}".format(cmd))
-            raise
+            raise NoResponseError
 
     def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
