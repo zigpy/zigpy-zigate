@@ -123,6 +123,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     @zigpy.util.retryable_request
     async def request(self, device, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False):
+        src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
         LOGGER.debug('request %s',
                      (device.nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
         req_id = self.get_sequence()
@@ -135,7 +136,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if v[0] != 0:
             self._pending.pop(req_id)
-            return v[0], "Message send failure %s"
+            return v[0], "Message send failure {}".format(v[0])
 
         # Commented out for now
         # Currently (Firmware 3.1a) only send APS Data confirm in case of failure
