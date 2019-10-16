@@ -1,8 +1,9 @@
 import asyncio
 import logging
 
-import zigpy.device
 import zigpy.application
+import zigpy.device
+import zigpy.types
 import zigpy.util
 from zigpy_zigate import types as t
 from zigpy_zigate.api import NoResponseError
@@ -36,7 +37,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         network_state, lqi = await self._api.get_network_state()
         self._nwk = network_state[0]
-        self._ieee = network_state[1]
+        self._ieee = zigpy.types.EUI64(network_state[1])
 
         dev = ZiGateDevice(self, self._ieee, self._nwk)
         self.devices[dev.ieee] = dev
@@ -84,11 +85,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if msg == 0x8048:  # leave
             nwk = 0
-            ieee = response[0]
+            ieee = zigpy.types.EUI64(response[0])
             self.handle_leave(nwk, ieee)
         elif msg == 0x004D:  # join
             nwk = response[0]
-            ieee = response[1]
+            ieee = zigpy.types.EUI64(response[1])
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
         elif msg == 0x8002:
