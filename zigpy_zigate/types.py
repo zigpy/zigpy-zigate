@@ -1,25 +1,5 @@
 import enum
-from zigpy.types import HexRepr
 import zigpy.types
-import sqlite3
-import zigpy.appdb  # noqa
-
-
-def adapt_ieee(eui64):
-    return repr(eui64)
-
-
-def convert_ieee(s):
-    ieee = [uint8_t(p, base=16) for p in s.split(b':')[::-1]]
-    return EUI64(ieee)
-
-
-def _sqlite_adapters():
-    sqlite3.register_adapter(EUI64, adapt_ieee)
-    sqlite3.register_converter("ieee", convert_ieee)
-
-
-zigpy.appdb._sqlite_adapters = _sqlite_adapters
 
 
 def deserialize(data, schema):
@@ -139,17 +119,18 @@ class uint64_t(uint_t):
 
 
 class EUI64(zigpy.types.EUI64):
-    def __repr__(self):
-        return ':'.join('%02x' % i for i in self[::-1])
-
-
-class NWK(HexRepr, uint16_t):
-    _hex_len = 4
-
     @classmethod
     def deserialize(cls, data):
         r, data = super().deserialize(data)
-        return cls(r), data
+        return cls(r[::-1]), data
+
+    def serialize(self):
+        assert self._length == len(self)
+        return super().serialize()[::-1]
+
+
+class NWK(zigpy.types.HexRepr, uint16_t):
+    pass
 
 
 class ADDRESS_MODE(uint8_t, enum.Enum):
