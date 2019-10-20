@@ -77,8 +77,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 await self._api.reset()
 
     async def force_remove(self, dev):
-        pass
-#         await self._api.remove_device(self._ieee, dev.ieee)
+        await self._api.remove_device(self._ieee, dev.ieee)
 
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
@@ -97,7 +96,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
                     device = self.get_device(nwk=response[5].address)
                 elif response[5].address_mode == t.ADDRESS_MODE.IEEE:
-                    device = self.get_device(ieee=response[5].address)
+                    device = self.get_device(ieee=zigpy.types.EUI64(response[5].address))
                 else:
                     LOGGER.error("No such device %s", response[5].address)
                     return
