@@ -33,8 +33,15 @@ Tagged versions are also released via PyPI
 - To configure __pizigate__ port, prefix the port with `pizigate:`, example : `pizigate:/dev/serial0`
 - To configure __wifi__ ZiGate, specify IP address and port, example : `socket://192.168.1.10:9999` 
 
-
 # WARNING : EXPERIMENTAL
 
 Require the zigate firmware 3.1a and later
 https://zigate.fr/tag/firmware/
+
+# How to contribute
+
+If you are looking to make a contribution to this project we suggest that you follow the steps in these guides:
+- https://github.com/firstcontributions/first-contributions/blob/master/README.md
+- https://github.com/firstcontributions/first-contributions/blob/master/github-desktop-tutorial.md
+
+Some developers might also be interested in receiving donations in the form of hardware such as Zigbee modules or devices, and even if such donations are most often donated with no strings attached it could in many cases help the developers motivation and indirect improve the development of this project.
