@@ -156,5 +156,6 @@ async def set_pizigate_running_mode():
         await asyncio.sleep(0.5)
         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
         await asyncio.sleep(0.5)
-    except Exception:
-        LOGGER.warning('Unable to set PiZiGate GPIO, please check configuration')
+    except Exception as e:
+        LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
+        LOGGER.error(str(e))
