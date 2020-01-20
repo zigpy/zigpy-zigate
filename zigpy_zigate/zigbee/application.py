@@ -32,10 +32,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         version = '{}.{}'.format(version[0], version[1:])
         self.version = version
 
-        if auto_form:
-            await self.form_network()
-
         network_state, lqi = await self._api.get_network_state()
+        should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
+
+        if auto_form and should_form:
+            await self.form_network()
+        if should_form:
+            network_state, lqi = await self._api.get_network_state()
         self._nwk = network_state[0]
         self._ieee = zigpy.types.EUI64(network_state[1])
 
@@ -68,9 +71,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 await asyncio.sleep(1)
                 tries -= 1
                 network_state, lqi = await self._api.get_network_state()
-                if network_state and \
-                   network_state[3] != 0 and \
-                   network_state[0] != 'ffff':
+                if network_state and network_state[3] != 0 and network_state[0] != 0xffff:
                     break
             if tries <= 0:
                 LOGGER.error('Failed to start network error %s', network_formed[0])
