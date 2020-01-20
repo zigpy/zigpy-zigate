@@ -107,8 +107,10 @@ class ZiGate:
     async def reset(self):
         self._command(0x0011, wait_status=False)
 
-    async def set_channel(self, channel):
-        channels = [channel]
+    async def set_channel(self, channels=None):
+        channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
+        if not isinstance(channels, list):
+            channels = [channels]
         mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
         data = t.serialize([mask], COMMANDS[0x0021])
         await self.command(0x0021, data),

@@ -49,7 +49,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         """Shutdown application."""
         self._api.close()
 
-    async def form_network(self, channel=15, pan_id=None, extended_pan_id=None):
+    async def form_network(self, channel=None, pan_id=None, extended_pan_id=None):
         await self._api.set_channel(channel)
         if pan_id:
             LOGGER.warning('Setting pan_id is not supported by ZiGate')
