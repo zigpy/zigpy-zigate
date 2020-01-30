@@ -1,5 +1,7 @@
 # zigpy-zigate
 
+** WARNING : EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work is provided “AS IS”.**
+
 [![Build Status](https://travis-ci.com/doudz/zigpy-zigate.svg?branch=master)](https://travis-ci.com/doudz/zigpy-zigate)
 [![Coverage](https://coveralls.io/repos/github/doudz/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/doudz/zigpy-zigate?branch=master)
 
@@ -11,8 +13,6 @@ ZiGate is a open source ZigBee adapter hardware that was initially launched on K
 
 - https://www.zigate.fr
 - https://www.kickstarter.com/projects/1361563794/zigate-universal-zigbee-gateway-for-smarthome
-
-## WARNING : EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work is provided “AS IS”.
 
 ## Compatible hardware
 The ZiGate USB adapter communicates via a PL-2303HX USB to Serial Bridge Controller module by Prolific. 
