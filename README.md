@@ -1,9 +1,9 @@
 # zigpy-zigate
 
-** WARNING : EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work is provided “AS IS”.**
-
 [![Build Status](https://travis-ci.com/doudz/zigpy-zigate.svg?branch=master)](https://travis-ci.com/doudz/zigpy-zigate)
 [![Coverage](https://coveralls.io/repos/github/doudz/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/doudz/zigpy-zigate?branch=master)
+
+**WARNING: EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work provided “AS IS”.**
 
 [zigpy-zigate](https://github.com/doudz/zigpy-zigate) is a Python 3 implementation for the [Zigpy](https://github.com/zigpy/) project to implement [ZiGate](https://www.zigate.fr/) based [Zigbee](https://www.zigbee.org) radio devices.
 
@@ -21,12 +21,12 @@ There's also a Wi-Fi adapter to communicate with ZiGate over network.
 Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a or later to work with this zigpy-zigate module.
 
 ### Known working Zigbee radio modules
-- [ZiGate USB-TTL(https://zigate.fr/produit/zigate-ttl/)
-- [ZiGate USB-DIN(https://zigate.fr/produit/zigate-usb-din/)
-- [PiZiGate(https://zigate.fr/produit/pizigate-v1-0/)
+- [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/)
+- [ZiGate USB-DIN](https://zigate.fr/produit/zigate-usb-din/)
+- [PiZiGate (ZiGate module for Raspberry Pi GPIO)](https://zigate.fr/produit/pizigate-v1-0/)
 
 ### Experimental Zigbee radio modules
-- [Wifi ZiGate](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
+- [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
 
 ## Releases via PyPI
 Tagged versions are also released via PyPI
