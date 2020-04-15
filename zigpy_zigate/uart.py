@@ -1,13 +1,17 @@
 import asyncio
+import binascii
 import logging
+import struct
+from typing import Any, Callable, Dict
+
 import serial  # noqa
 import serial.tools.list_ports
-import binascii
-import struct
-
 import serial_asyncio
 
+from zigpy_zigate.config import CONF_DEVICE_PATH
+
 LOGGER = logging.getLogger(__name__)
+ZIGATE_BAUDRATE = 115200
 
 
 class Gateway(asyncio.Protocol):
@@ -108,13 +112,14 @@ class Gateway(asyncio.Protocol):
         return length
 
 
-async def connect(port, baudrate, api, loop=None):
+async def connect(device_config: Dict[str, Any], api, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
 
     connected_future = asyncio.Future()
     protocol = Gateway(api, connected_future)
 
+    port = device_config[CONF_DEVICE_PATH]
     if port.startswith('pizigate:'):
         await set_pizigate_running_mode()
         port = port.split(':', 1)[1]
@@ -130,12 +135,13 @@ async def connect(port, baudrate, api, loop=None):
                 LOGGER.info('ZiGate probably found at %s', port)
             else:
                 LOGGER.error('Unable to find ZiGate using auto mode')
+                raise serial.SerialException("Unable to find Zigate using auto mode")
 
     _, protocol = await serial_asyncio.create_serial_connection(
         loop,
         lambda: protocol,
         url=port,
-        baudrate=baudrate,
+        baudrate=ZIGATE_BAUDRATE,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
         xonxoff=False,
