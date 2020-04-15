@@ -4,8 +4,9 @@ import functools
 import logging
 from typing import Any, Dict
 
+import zigpy_zigate.uart
+
 from . import types as t
-from . import uart
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class ZiGate:
         self.network_state = None
 
     @classmethod
-    async def new(cls, application, config: Dict[str, Any]) -> "ZiGate":
+    async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
         api = cls(config)
         await api.connect()
         api.set_application(application)
@@ -58,7 +59,7 @@ class ZiGate:
 
     async def connect(self):
         assert self._uart is None
-        self._uart = await uart.connect(self._config, self)
+        self._uart = await zigpy_zigate.uart.connect(self._config, self)
 
     def close(self):
         if self._uart:

@@ -1,22 +1,26 @@
 import asyncio
 import logging
+from typing import Any, Dict, Optional
 
 import zigpy.application
+import zigpy.config
 import zigpy.device
 import zigpy.types
 import zigpy.util
+
 from zigpy_zigate import types as t
-from zigpy_zigate.api import NoResponseError
+from zigpy_zigate.api import NoResponseError, ZiGate
+from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
-    def __init__(self, api, database_file=None):
-        super().__init__(database_file=database_file)
-        self._api = api
-        self._api.add_callback(self.zigate_callback_handler)
-        api.set_application(self)
+    SCHEMA = CONFIG_SCHEMA
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(zigpy.config.ZIGPY_SCHEMA(config))
+        self._api: Optional[ZiGate] = None
 
         self._pending = {}
 
@@ -26,6 +30,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
+        self._api = ZiGate.new(self._config[CONF_DEVICE], self)
+        self._api.add_callback(self.zigate_callback_handler)
         await self._api.set_raw_mode()
         version, lqi = await self._api.version()
         version = '{:x}'.format(version[1])
