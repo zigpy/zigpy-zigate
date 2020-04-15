@@ -3,11 +3,11 @@ from unittest import mock
 import pytest
 import serial_asyncio
 
-import zigpy_cc.config
+import zigpy_zigate.config
 from zigpy_zigate import uart
 
-DEVICE_CONFIG = zigpy_cc.config.SCHEMA_DEVICE(
-    {zigpy_cc.config.CONF_DEVICE_PATH: "/dev/null"}
+DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
+    {zigpy_zigate.config.CONF_DEVICE_PATH: "/dev/null"}
 )
 
 

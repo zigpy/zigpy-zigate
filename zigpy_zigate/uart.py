@@ -2,7 +2,7 @@ import asyncio
 import binascii
 import logging
 import struct
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 
 import serial  # noqa
 import serial.tools.list_ports
