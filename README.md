@@ -1,13 +1,13 @@
 # zigpy-zigate
 
-[![Build Status](https://travis-ci.com/doudz/zigpy-zigate.svg?branch=master)](https://travis-ci.com/doudz/zigpy-zigate)
+[![Build Status](https://travis-ci.com/zigpy/zigpy-zigate.svg?branch=master)](https://travis-ci.com/zigpy/zigpy-zigate)
 [![Coverage](https://coveralls.io/repos/github/doudz/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/doudz/zigpy-zigate?branch=master)
 
 **WARNING: EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work provided “AS IS”.**
 
-[zigpy-zigate](https://github.com/doudz/zigpy-zigate) is a Python 3 implementation for the [Zigpy](https://github.com/zigpy/) project to implement [ZiGate](https://www.zigate.fr/) based [Zigbee](https://www.zigbee.org) radio devices.
+[zigpy-zigate](https://github.com/zigpy/zigpy-zigate) is a Python 3 implementation for the [Zigpy](https://github.com/zigpy/) project to implement [ZiGate](https://www.zigate.fr/) based [Zigbee](https://www.zigbee.org) radio devices.
 
-- https://github.com/doudz/zigpy-zigate
+- https://github.com/zigpy/zigpy-zigate
 
 ZiGate is a open source ZigBee adapter hardware that was initially launched on Kickstarter by @fairecasoimeme
 
