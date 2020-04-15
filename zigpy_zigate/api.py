@@ -4,6 +4,10 @@ import functools
 import logging
 from typing import Any, Dict
 
+import serial
+import zigpy.exceptions
+
+import zigpy_zigate.config
 import zigpy_zigate.uart
 
 from . import types as t
@@ -35,7 +39,7 @@ COMMANDS = {
 }
 
 
-class NoResponseError(Exception):
+class NoResponseError(zigpy.exceptions.APIException):
     pass
 
 
@@ -169,3 +173,30 @@ class ZiGate:
                 handler(*args)
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
+
+    @classmethod
+    async def probe(cls, device_config: Dict[str, Any]) -> bool:
+        """Probe port for the device presence."""
+        api = cls(zigpy_zigate.config.SCHEMA_DEVICE(device_config))
+        try:
+            await asyncio.wait_for(api._probe(), timeout=COMMAND_TIMEOUT)
+            return True
+        except (
+            asyncio.TimeoutError,
+            serial.SerialException,
+            zigpy.exceptions.ZigbeeException,
+        ) as exc:
+            LOGGER.debug(
+                "Unsuccessful radio probe of '%s' port",
+                device_config[zigpy_zigate.config.CONF_DEVICE_PATH],
+                exc_info=exc,
+            )
+        finally:
+            api.close()
+
+        return False
+
+    async def _probe(self) -> None:
+        """Open port and try sending a command"""
+        await self.connect()
+        await self.set_raw_mode()
