@@ -5,9 +5,9 @@
 
 **WARNING: EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work provided “AS IS”.**
 
-[zigpy-zigate](https://github.com/doudz/zigpy-zigate) is a Python 3 implementation for the [Zigpy](https://github.com/zigpy/) project to implement [ZiGate](https://www.zigate.fr/) based [Zigbee](https://www.zigbee.org) radio devices.
+[zigpy-zigate](https://github.com/zigpy/zigpy-zigate) is a Python 3 implementation for the [Zigpy](https://github.com/zigpy/) project to implement [ZiGate](https://www.zigate.fr/) based [Zigbee](https://www.zigbee.org) radio devices.
 
-- https://github.com/doudz/zigpy-zigate
+- https://github.com/zigpy/zigpy-zigate
 
 ZiGate is a open source ZigBee adapter hardware that was initially launched on Kickstarter by @fairecasoimeme
 
@@ -57,14 +57,6 @@ If you are looking to make a contribution to this project we suggest that you fo
 - https://github.com/firstcontributions/first-contributions/blob/master/github-desktop-tutorial.md
 
 Some developers might also be interested in receiving donations in the form of hardware such as Zigbee modules or devices, and even if such donations are most often donated with no strings attached it could in many cases help the developers motivation and indirect improve the development of this project.
-
-## Comment contribuer
-
-Si vous souhaitez apporter une contribution à ce projet, nous vous suggérons de suivre les étapes décrites dans ces guides:
-- https://github.com/firstcontributions/first-contributions/blob/master/README.md
-- https://github.com/firstcontributions/first-contributions/blob/master/github-desktop-tutorial.md
-
-Certains développeurs pourraient également être intéressés par des dons sous forme de matériel, tels que des modules ou des dispositifs Zigbee, et même si ces dons sont le plus souvent donnés sans aucune condition, cela pourrait dans de nombreux cas motiver les développeurs et indirectement améliorer le développement de ce projet.
 
 ## Related projects
 
