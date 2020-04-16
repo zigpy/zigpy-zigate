@@ -1,7 +1,7 @@
 # zigpy-zigate
 
 [![Build Status](https://travis-ci.com/zigpy/zigpy-zigate.svg?branch=master)](https://travis-ci.com/zigpy/zigpy-zigate)
-[![Coverage](https://coveralls.io/repos/github/doudz/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/doudz/zigpy-zigate?branch=master)
+[![Coverage](https://coveralls.io/repos/github/zigpy/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/zigpy/zigpy-zigate?branch=master)
 
 **WARNING: EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work provided “AS IS”.**
 
