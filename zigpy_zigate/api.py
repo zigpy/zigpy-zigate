@@ -1,15 +1,16 @@
-import logging
 import asyncio
 import binascii
 import functools
+import logging
+from typing import Any, Dict
 
-from . import uart
+import zigpy_zigate.uart
+
 from . import types as t
 
 LOGGER = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 3.0
-ZIGATE_BAUDRATE = 115200
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t),
@@ -39,7 +40,9 @@ class NoResponseError(Exception):
 
 
 class ZiGate:
-    def __init__(self):
+    def __init__(self, device_config: Dict[str, Any]):
+        self._app = None
+        self._config = device_config
         self._uart = None
         self._callbacks = {}
         self._awaiting = {}
@@ -47,12 +50,21 @@ class ZiGate:
 
         self.network_state = None
 
-    async def connect(self, device, baudrate=ZIGATE_BAUDRATE):
+    @classmethod
+    async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
+        api = cls(config)
+        await api.connect()
+        api.set_application(application)
+        return api
+
+    async def connect(self):
         assert self._uart is None
-        self._uart = await uart.connect(device, ZIGATE_BAUDRATE, self)
+        self._uart = await zigpy_zigate.uart.connect(self._config, self)
 
     def close(self):
-        return self._uart.close()
+        if self._uart:
+            self._uart.close()
+            self._uart = None
 
     def set_application(self, app):
         self._app = app
