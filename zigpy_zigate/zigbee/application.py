@@ -10,13 +10,14 @@ import zigpy.util
 
 from zigpy_zigate import types as t
 from zigpy_zigate.api import NoResponseError, ZiGate
-from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA
+from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
     SCHEMA = CONFIG_SCHEMA
+    SCHEMA_DEVICE = SCHEMA_DEVICE
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(zigpy.config.ZIGPY_SCHEMA(config))
