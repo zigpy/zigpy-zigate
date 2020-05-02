@@ -14,7 +14,7 @@ from . import types as t
 
 LOGGER = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 3.0
+COMMAND_TIMEOUT = 1.5
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t),
