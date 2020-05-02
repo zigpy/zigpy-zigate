@@ -19,6 +19,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     SCHEMA = CONFIG_SCHEMA
     SCHEMA_DEVICE = SCHEMA_DEVICE
 
+    probe = ZiGate.probe
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(zigpy.config.ZIGPY_SCHEMA(config))
         self._api: Optional[ZiGate] = None
