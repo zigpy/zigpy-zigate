@@ -1,7 +1,7 @@
 # zigpy-zigate
 
 [![Build Status](https://travis-ci.com/zigpy/zigpy-zigate.svg?branch=master)](https://travis-ci.com/zigpy/zigpy-zigate)
-[![Coverage](https://coveralls.io/repos/github/doudz/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/doudz/zigpy-zigate?branch=master)
+[![Coverage](https://coveralls.io/repos/github/zigpy/zigpy-zigate/badge.svg?branch=master)](https://coveralls.io/github/zigpy/zigpy-zigate?branch=master)
 
 **WARNING: EXPERIMENTAL! This project is under development as WIP (work in progress). Developer’s work provided “AS IS”.**
 
@@ -28,13 +28,6 @@ Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a o
 ### Experimental Zigbee radio modules
 - [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
 
-## Releases via PyPI
-Tagged versions are also released via PyPI
-
-- https://pypi.org/project/zigpy-zigate/
-- https://pypi.org/project/zigpy-zigate/#history
-- https://pypi.org/project/zigpy-zigate/#files
-
 ## Port configuration
 
 - To configure __usb__ ZiGate port, just specify the port, example : `/dev/ttyUSB0`
@@ -44,6 +37,35 @@ Tagged versions are also released via PyPI
 
 Note! Requires ZiGate firmware 3.1a and later
 - https://zigate.fr/tag/firmware/
+
+## Testing new releases
+
+Testing a new release of the zigpy-zigate library before it is released in Home Assistant.
+
+If you are using Supervised Home Assistant (formerly known as the Hassio/Hass.io distro):
+- Add https://github.com/home-assistant/hassio-addons-development as "add-on" repository
+- Install "Custom deps deployment" addon
+- Update config like: 
+  ```
+  pypi:
+    - zigpy-zigate==0.5.1
+  apk: []
+  ```
+  where 0.5.1 is the new version
+- Start the addon
+
+If you are instead using some custom python installation of Home Assistant then do this:
+- Activate your python virtual env
+- Update package with ``pip``
+  ```
+  pip install zigpy-zigate==0.5.1
+
+## Releases via PyPI
+Tagged versions are also released via PyPI
+
+- https://pypi.org/project/zigpy-zigate/
+- https://pypi.org/project/zigpy-zigate/#history
+- https://pypi.org/project/zigpy-zigate/#files
 
 ## Developer references
 Documents that layout the serial protocol used for ZiGate serial interface communication can be found here:
@@ -57,14 +79,6 @@ If you are looking to make a contribution to this project we suggest that you fo
 - https://github.com/firstcontributions/first-contributions/blob/master/github-desktop-tutorial.md
 
 Some developers might also be interested in receiving donations in the form of hardware such as Zigbee modules or devices, and even if such donations are most often donated with no strings attached it could in many cases help the developers motivation and indirect improve the development of this project.
-
-## Comment contribuer
-
-Si vous souhaitez apporter une contribution à ce projet, nous vous suggérons de suivre les étapes décrites dans ces guides:
-- https://github.com/firstcontributions/first-contributions/blob/master/README.md
-- https://github.com/firstcontributions/first-contributions/blob/master/github-desktop-tutorial.md
-
-Certains développeurs pourraient également être intéressés par des dons sous forme de matériel, tels que des modules ou des dispositifs Zigbee, et même si ces dons sont le plus souvent donnés sans aucune condition, cela pourrait dans de nombreux cas motiver les développeurs et indirectement améliorer le développement de ce projet.
 
 ## Related projects
 
