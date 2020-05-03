@@ -1,4 +1,5 @@
 """Setup module for zigpy-zigate"""
+import os
 
 from setuptools import find_packages, setup
 from zigpy_zigate import __version__
@@ -53,11 +54,16 @@ requires = ['pyserial-asyncio',
 if is_raspberry_pi():
     requires.append('RPi.GPIO')
 
+this_directory = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name="zigpy-zigate",
     version=__version__,
     description="A library which communicates with ZiGate radios for zigpy",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url="http://github.com/doudz/zigpy-zigate",
     author="Sébastien RAMAGE",
     author_email="sebatien.ramage@gmail.com",
