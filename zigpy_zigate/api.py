@@ -48,7 +48,6 @@ class ZiGate:
         self._app = None
         self._config = device_config
         self._uart = None
-        self._callbacks = {}
         self._awaiting = {}
         self._status_awaiting = {}
 
@@ -157,20 +156,11 @@ class ZiGate:
                            security, radius, payload], COMMANDS[0x0530])
         return await self.command(0x0530, data)
 
-    def add_callback(self, cb):
-        id_ = hash(cb)
-        while id_ in self._callbacks:
-            id_ += 1
-        self._callbacks[id_] = cb
-        return id_
-
-    def remove_callback(self, id_):
-        return self._callbacks.pop(id_)
-
     def handle_callback(self, *args):
-        for handler in self._callbacks.values():
+        """run application callback handler"""
+        if self._app:
             try:
-                handler(*args)
+                self._app.zigate_callback_handler(*args)
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
 
