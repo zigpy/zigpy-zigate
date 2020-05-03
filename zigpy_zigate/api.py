@@ -1,15 +1,20 @@
-import logging
 import asyncio
 import binascii
 import functools
+import logging
+from typing import Any, Dict
 
-from . import uart
+import serial
+import zigpy.exceptions
+
+import zigpy_zigate.config
+import zigpy_zigate.uart
+
 from . import types as t
 
 LOGGER = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 3.0
-ZIGATE_BAUDRATE = 115200
+COMMAND_TIMEOUT = 1.5
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t),
@@ -34,25 +39,35 @@ COMMANDS = {
 }
 
 
-class NoResponseError(Exception):
+class NoResponseError(zigpy.exceptions.APIException):
     pass
 
 
 class ZiGate:
-    def __init__(self):
+    def __init__(self, device_config: Dict[str, Any]):
+        self._app = None
+        self._config = device_config
         self._uart = None
-        self._callbacks = {}
         self._awaiting = {}
         self._status_awaiting = {}
 
         self.network_state = None
 
-    async def connect(self, device, baudrate=ZIGATE_BAUDRATE):
+    @classmethod
+    async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
+        api = cls(config)
+        await api.connect()
+        api.set_application(application)
+        return api
+
+    async def connect(self):
         assert self._uart is None
-        self._uart = await uart.connect(device, ZIGATE_BAUDRATE, self)
+        self._uart = await zigpy_zigate.uart.connect(self._config, self)
 
     def close(self):
-        return self._uart.close()
+        if self._uart:
+            self._uart.close()
+            self._uart = None
 
     def set_application(self, app):
         self._app = app
@@ -141,19 +156,37 @@ class ZiGate:
                            security, radius, payload], COMMANDS[0x0530])
         return await self.command(0x0530, data)
 
-    def add_callback(self, cb):
-        id_ = hash(cb)
-        while id_ in self._callbacks:
-            id_ += 1
-        self._callbacks[id_] = cb
-        return id_
-
-    def remove_callback(self, id_):
-        return self._callbacks.pop(id_)
-
     def handle_callback(self, *args):
-        for handler in self._callbacks.values():
+        """run application callback handler"""
+        if self._app:
             try:
-                handler(*args)
+                self._app.zigate_callback_handler(*args)
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
+
+    @classmethod
+    async def probe(cls, device_config: Dict[str, Any]) -> bool:
+        """Probe port for the device presence."""
+        api = cls(zigpy_zigate.config.SCHEMA_DEVICE(device_config))
+        try:
+            await asyncio.wait_for(api._probe(), timeout=COMMAND_TIMEOUT)
+            return True
+        except (
+            asyncio.TimeoutError,
+            serial.SerialException,
+            zigpy.exceptions.ZigbeeException,
+        ) as exc:
+            LOGGER.debug(
+                "Unsuccessful radio probe of '%s' port",
+                device_config[zigpy_zigate.config.CONF_DEVICE_PATH],
+                exc_info=exc,
+            )
+        finally:
+            api.close()
+
+        return False
+
+    async def _probe(self) -> None:
+        """Open port and try sending a command"""
+        await self.connect()
+        await self.set_raw_mode()
