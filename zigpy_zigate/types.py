@@ -129,8 +129,12 @@ class EUI64(zigpy.types.EUI64):
         return super().serialize()[::-1]
 
 
-class NWK(zigpy.types.HexRepr, uint16_t):
-    pass
+class NWK(uint16_t):
+    def __repr__(self):
+        return "0x{:04x}".format(self)
+
+    def __str__(self):
+        return "0x{:04x}".format(self)
 
 
 class ADDRESS_MODE(uint8_t, enum.Enum):
