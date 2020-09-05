@@ -47,6 +47,7 @@ def is_raspberry_pi(raise_on_errors=False):
 
     return True
 
+
 requires = [
     'pyserial-asyncio',
     'zigpy>=0.22.2',
