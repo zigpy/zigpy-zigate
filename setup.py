@@ -47,10 +47,11 @@ def is_raspberry_pi(raise_on_errors=False):
 
     return True
 
+requires = [
+    'pyserial-asyncio',
+    'zigpy>=0.22.2',
+]
 
-requires = ['pyserial-asyncio',
-            'zigpy>=0.20.1.a3',
-            ]
 if is_raspberry_pi():
     requires.append('RPi.GPIO')
 
