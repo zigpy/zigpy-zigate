@@ -48,11 +48,6 @@ def is_raspberry_pi(raise_on_errors=False):
     return True
 
 
-requires = [
-    'pyserial-asyncio',
-    'zigpy>=0.22.2',
-]
-
 if is_raspberry_pi():
     requires.append('RPi.GPIO')
 
@@ -66,12 +61,15 @@ setup(
     description="A library which communicates with ZiGate radios for zigpy",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="http://github.com/doudz/zigpy-zigate",
+    url="http://github.com/zigpy/zigpy-zigate",
     author="Sébastien RAMAGE",
     author_email="sebatien.ramage@gmail.com",
     license="GPL-3.0",
     packages=find_packages(exclude=['*.tests']),
-    install_requires=requires,
+    install_requires=[
+        "pyserial-asyncio",
+        "zigpy>=0.22.2",
+    ],
     tests_require=[
         'pytest',
     ],
