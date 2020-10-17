@@ -117,6 +117,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_message(device, response[1],
                                 response[2],
                                 response[3], response[4], response[-1])
+        elif msg == 0x8011:  # ACK Data
+            self._handle_frame_failure(response[4], response[0])
         elif msg == 0x8702:  # APS Data confirm Fail
             self._handle_frame_failure(response[4], response[0])
 
@@ -147,17 +149,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self._pending.pop(req_id)
             return v[0], "Message send failure {}".format(v[0])
 
-        # Commented out for now
-        # Currently (Firmware 3.1a) only send APS Data confirm in case of failure
-        # https://github.com/fairecasoimeme/ZiGate/issues/239
-#         try:
-#             v = await asyncio.wait_for(send_fut, 120)
-#         except asyncio.TimeoutError:
-#             return 1, "timeout waiting for message %s send ACK" % (sequence, )
-#         finally:
-#             self._pending.pop(req_id)
-#         return v, "Message sent"
-        return 0, "Message sent"
+        try:
+            v = await asyncio.wait_for(send_fut, 120)
+        except asyncio.TimeoutError:
+            return 1, "timeout waiting for message %s send ACK" % (sequence, )
+        finally:
+            self._pending.pop(req_id)
+        return v, "Message sent"
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254

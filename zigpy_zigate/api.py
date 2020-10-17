@@ -23,6 +23,7 @@ RESPONSES = {
              t.Address, t.Address, t.Bytes),
     0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
+    0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
     0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     0x8048: (t.EUI64, t.uint8_t),
     0x8701: (t.uint8_t, t.uint8_t),
