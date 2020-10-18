@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Any, Dict, Optional
+import enum
 
 import zigpy.application
 import zigpy.config
@@ -13,6 +14,30 @@ from zigpy_zigate.api import NoResponseError, ZiGate
 from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
+
+
+class AutoEnum(enum.IntEnum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count
+
+
+class PDM_EVENT(AutoEnum):
+    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = enum.auto()
+    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = enum.auto()
+    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = enum.auto()
+    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = enum.auto()
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
@@ -118,8 +143,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                                 response[2],
                                 response[3], response[4], response[-1])
         elif msg == 0x8011:  # ACK Data
+            LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x8035:  # PDM Event
+            try:
+                event = PDM_EVENT(response[0]).name
+            except:
+                event = 'Unknown event'
+            LOGGER.debug('PDM Event %s %s, record %s', response[0], event, response[1])
         elif msg == 0x8702:  # APS Data confirm Fail
+            LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
 
     def _handle_frame_failure(self, message_tag, status):
@@ -137,25 +170,27 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
         LOGGER.debug('request %s',
                      (device.nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
-        req_id = self.get_sequence()
-        send_fut = asyncio.Future()
-        self._pending[req_id] = send_fut
         try:
             v, lqi = await self._api.raw_aps_data_request(device.nwk, src_ep, dst_ep, profile, cluster, data)
         except NoResponseError:
             return 1, "ZiGate doesn't answer to command"
+        req_id = v[1]
+        send_fut = asyncio.Future()
+        self._pending[req_id] = send_fut
 
         if v[0] != 0:
             self._pending.pop(req_id)
             return v[0], "Message send failure {}".format(v[0])
 
-        try:
-            v = await asyncio.wait_for(send_fut, 120)
-        except asyncio.TimeoutError:
-            return 1, "timeout waiting for message %s send ACK" % (sequence, )
-        finally:
-            self._pending.pop(req_id)
-        return v, "Message sent"
+        # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
+        # try:
+        #     v = await asyncio.wait_for(send_fut, 120)
+        # except asyncio.TimeoutError:
+        #     return 1, "timeout waiting for message %s send ACK" % (sequence, )
+        # finally:
+        #     self._pending.pop(req_id)
+        # return v, "Message sent"
+        return 0, "Message sent"
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
