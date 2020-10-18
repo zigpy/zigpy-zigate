@@ -41,6 +41,7 @@ COMMANDS = {
     0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
 }
 
+
 class AutoEnum(enum.IntEnum):
     def _generate_next_value_(name, start, count, last_values):
         return count

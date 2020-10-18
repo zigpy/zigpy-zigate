@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from typing import Any, Dict, Optional
-import enum
 
 import zigpy.application
 import zigpy.config
