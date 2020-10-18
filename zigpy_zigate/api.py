@@ -2,6 +2,7 @@ import asyncio
 import binascii
 import functools
 import logging
+import enum
 from typing import Any, Dict
 
 import serial
@@ -39,6 +40,29 @@ COMMANDS = {
     0x0049: (t.NWK, t.uint8_t, t.uint8_t),
     0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
 }
+
+class AutoEnum(enum.IntEnum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count
+
+
+class PDM_EVENT(AutoEnum):
+    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = enum.auto()
+    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = enum.auto()
+    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = enum.auto()
+    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = enum.auto()
 
 
 class NoResponseError(zigpy.exceptions.APIException):

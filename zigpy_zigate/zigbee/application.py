@@ -10,34 +10,10 @@ import zigpy.types
 import zigpy.util
 
 from zigpy_zigate import types as t
-from zigpy_zigate.api import NoResponseError, ZiGate
+from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
 from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
-
-
-class AutoEnum(enum.IntEnum):
-    def _generate_next_value_(name, start, count, last_values):
-        return count
-
-
-class PDM_EVENT(AutoEnum):
-    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = enum.auto()
-    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = enum.auto()
-    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = enum.auto()
-    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = enum.auto()
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
@@ -148,7 +124,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == 0x8035:  # PDM Event
             try:
                 event = PDM_EVENT(response[0]).name
-            except:
+            except ValueError:
                 event = 'Unknown event'
             LOGGER.debug('PDM Event %s %s, record %s', response[0], event, response[1])
         elif msg == 0x8702:  # APS Data confirm Fail
