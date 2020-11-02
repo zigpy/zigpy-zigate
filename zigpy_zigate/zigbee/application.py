@@ -26,6 +26,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._api: Optional[ZiGate] = None
 
         self._pending = {}
+        self._pending_join = []
 
         self._nwk = 0
         self._ieee = 0
@@ -99,7 +100,15 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             nwk = response[0]
             ieee = zigpy.types.EUI64(response[1])
             parent_nwk = 0
-            self.handle_join(nwk, ieee, parent_nwk)
+            rejoin = response[3]
+            if nwk in self._pending_join or rejoin:
+                LOGGER.debug('Finish pairing {} (2nd device announce)'.format(nwk))
+                if nwk in self._pending_join:
+                    del self._pending_join.index(nwk)
+                self.handle_join(nwk, ieee, parent_nwk)
+            else:
+                LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
+                self._pending_join.append(nwk)
         elif msg == 0x8002:
             try:
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
