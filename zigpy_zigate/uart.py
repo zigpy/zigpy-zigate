@@ -3,6 +3,7 @@ import binascii
 import logging
 import struct
 import re
+import os.path
 from typing import Any, Dict
 
 import serial  # noqa
@@ -139,6 +140,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
                 LOGGER.error('Unable to find ZiGate using auto mode')
                 raise serial.SerialException("Unable to find Zigate using auto mode")
 
+    port = os.path.realpath(port)
     if re.match(r"/dev/(tty(S|AMA)|serial)\d+", port):
         # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
         await set_pizigate_running_mode()
