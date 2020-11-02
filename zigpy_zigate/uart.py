@@ -2,11 +2,13 @@ import asyncio
 import binascii
 import logging
 import struct
+import re
 from typing import Any, Dict
 
 import serial  # noqa
 import serial.tools.list_ports
 import serial_asyncio
+import usb
 
 from zigpy_zigate.config import CONF_DEVICE_PATH
 
@@ -137,6 +139,14 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
                 LOGGER.error('Unable to find ZiGate using auto mode')
                 raise serial.SerialException("Unable to find Zigate using auto mode")
 
+    if re.match(r"/dev/(tty(S|AMA)|serial)\d+", port):
+        # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
+        await set_pizigate_running_mode()
+    if re.match(r"/dev/ttyUSB\d+", port):
+        device = next(serial.tools.list_ports.grep(port))
+        if device.manufacturer == 'FTDI':  # Suppose zigate din /dev/ttyUSBx
+            await set_zigatedin_running_mode()
+
     _, protocol = await serial_asyncio.create_serial_connection(
         loop,
         lambda: protocol,
@@ -155,6 +165,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
 async def set_pizigate_running_mode():
     try:
         import RPi.GPIO as GPIO
+        LOGGER.info('Put PiZiGate in running mode')
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(27, GPIO.OUT)  # GPIO2
         GPIO.output(27, GPIO.HIGH)  # GPIO2
@@ -164,4 +175,71 @@ async def set_pizigate_running_mode():
         await asyncio.sleep(0.5)
     except Exception as e:
         LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
+        LOGGER.error(str(e))
+
+
+async def set_pizigate_flashing_mode():
+    try:
+        import RPi.GPIO as GPIO
+        LOGGER.info('Put PiZiGate in flashing mode')
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(27, GPIO.OUT)  # GPIO2
+        GPIO.output(27, GPIO.LOW)  # GPIO2
+        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
+        await asyncio.sleep(0.5)
+        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
+        await asyncio.sleep(0.5)
+    except Exception as e:
+        LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
+        LOGGER.error(str(e))
+
+
+def ftdi_set_bitmode(dev, bitmask):
+    '''
+    Set mode for ZiGate DIN module
+    '''
+    BITMODE_CBUS = 0x20
+    SIO_SET_BITMODE_REQUEST = 0x0b
+    bmRequestType = usb.util.build_request_type(usb.util.CTRL_OUT,
+                                                usb.util.CTRL_TYPE_VENDOR,
+                                                usb.util.CTRL_RECIPIENT_DEVICE)
+    wValue = bitmask | (BITMODE_CBUS << BITMODE_CBUS)
+    dev.ctrl_transfer(bmRequestType, SIO_SET_BITMODE_REQUEST, wValue)
+
+
+async def set_zigatedin_running_mode():
+    try:
+        dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
+        if not dev:
+            LOGGER.error('ZiGate DIN not found.')
+            return
+        LOGGER.info('Put ZiGate DIN in running mode')
+        ftdi_set_bitmode(dev, 0xC8)
+        await asyncio.sleep(0.5)
+        ftdi_set_bitmode(dev, 0xCC)
+        await asyncio.sleep(0.5)
+    except Exception as e:
+        LOGGER.error('Unable to set FTDI bitmode, please check configuration')
+        LOGGER.error(str(e))
+
+
+async def set_zigatedin_flashing_mode():
+    try:
+        dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
+        if not dev:
+            LOGGER.error('ZiGate DIN not found.')
+            return
+        LOGGER.info('Put ZiGate DIN in flashing mode')
+        ftdi_set_bitmode(dev, 0x00)
+        await asyncio.sleep(0.5)
+        ftdi_set_bitmode(dev, 0xCC)
+        await asyncio.sleep(0.5)
+        ftdi_set_bitmode(dev, 0xC0)
+        await asyncio.sleep(0.5)
+        ftdi_set_bitmode(dev, 0xC4)
+        await asyncio.sleep(0.5)
+        ftdi_set_bitmode(dev, 0xCC)
+        await asyncio.sleep(0.5)
+    except Exception as e:
+        LOGGER.error('Unable to set FTDI bitmode, please check configuration')
         LOGGER.error(str(e))

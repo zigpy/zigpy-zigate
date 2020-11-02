@@ -50,7 +50,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._nwk = network_state[0]
         self._ieee = zigpy.types.EUI64(network_state[1])
 
-        dev = ZiGateDevice(self, self._ieee, self._nwk)
+        dev = ZiGateDevice(self, self._ieee, self._nwk, self.version)
         self.devices[dev.ieee] = dev
 
     async def shutdown(self):
@@ -179,10 +179,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
 
 class ZiGateDevice(zigpy.device.Device):
+    def __init__(self, application, ieee, nwk, version):
+        """Initialize instance."""
+
+        super().__init__(application, ieee, nwk)
+        self._model = 'ZiGate {}'.format(version)
+
     @property
     def manufacturer(self):
         return "ZiGate"
 
     @property
     def model(self):
-        return 'ZiGate'
+        return self._model
