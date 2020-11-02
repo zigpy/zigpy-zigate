@@ -140,24 +140,31 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
                 LOGGER.error('Unable to find ZiGate using auto mode')
                 raise serial.SerialException("Unable to find Zigate using auto mode")
 
-    port = os.path.realpath(port)
-    if re.match(r"/dev/(tty(S|AMA)|serial)\d+", port):
-        # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
-        await set_pizigate_running_mode()
-    if re.match(r"/dev/ttyUSB\d+", port):
-        device = next(serial.tools.list_ports.grep(port))
-        if device.manufacturer == 'FTDI':  # Suppose zigate din /dev/ttyUSBx
-            await set_zigatedin_running_mode()
+    if port.startswith('socket://'):
+        host, port = port.split(':', 1)  # 192.168.x.y:9999
+        port = int(port)
+        _, protocol = await loop.create_connection(
+            lambda: protocol,
+            host, port)
+    else:
+        port = os.path.realpath(port)
+        if re.match(r"/dev/(tty(S|AMA)|serial)\d+", port):
+            # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
+            await set_pizigate_running_mode()
+        if re.match(r"/dev/ttyUSB\d+", port):
+            device = next(serial.tools.list_ports.grep(port))
+            if device.manufacturer == 'FTDI':  # Suppose zigate din /dev/ttyUSBx
+                await set_zigatedin_running_mode()
 
-    _, protocol = await serial_asyncio.create_serial_connection(
-        loop,
-        lambda: protocol,
-        url=port,
-        baudrate=ZIGATE_BAUDRATE,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE,
-        xonxoff=False,
-    )
+        _, protocol = await serial_asyncio.create_serial_connection(
+            loop,
+            lambda: protocol,
+            url=port,
+            baudrate=ZIGATE_BAUDRATE,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            xonxoff=False,
+        )
 
     await connected_future
 
