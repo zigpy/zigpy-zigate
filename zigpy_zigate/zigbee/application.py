@@ -104,7 +104,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             if nwk in self._pending_join or rejoin:
                 LOGGER.debug('Finish pairing {} (2nd device announce)'.format(nwk))
                 if nwk in self._pending_join:
-                    del self._pending_join.index(nwk)
+                    self._pending_join.remove(nwk)
                 self.handle_join(nwk, ieee, parent_nwk)
             else:
                 LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
