@@ -24,19 +24,23 @@ Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a o
 - [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/)
 - [ZiGate USB-DIN](https://zigate.fr/produit/zigate-usb-din/)
 - [PiZiGate (ZiGate module for Raspberry Pi GPIO)](https://zigate.fr/produit/pizigate-v1-0/)
+- [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
 
 ### Experimental Zigbee radio modules
-- [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
 - [Open Lumi Gateway](https://github.com/openlumi) - [DIY ZiGate WiFi bridge hacked from an Xiaomi Lumi Gateway with modded OpenWRT firmware](https://github.com/zigpy/zigpy-zigate/issues/59)
 
 ## Port configuration
 
-- To configure __usb__ ZiGate port, just specify the port, example : `/dev/ttyUSB0`
-    - Alternatively you could set port to `auto` to enable automatic usb port discovery
-- To configure __pizigate__ port, prefix the port with `pizigate:`, example : `pizigate:/dev/serial0`
-- To configure __wifi__ ZiGate, specify IP address and port, example : `socket://192.168.1.10:9999` 
+- To configure __usb__ ZiGate (USB TTL or DIN) port, just specify the port, example : `/dev/ttyUSB0`
+    - Alternatively you could manually set port to `auto` to enable automatic usb port discovery
+- To configure __pizigate__ port, specify the port, example : `/dev/serial0` or `/dev/ttyAMA0`
+- To configure __wifi__ ZiGate, manually specify IP address and port, example : `socket://192.168.1.10:9999` 
 
-Note! Requires ZiGate firmware 3.1a and later
+__pizigate__ may requiert some adjustements on Rpi3 or Rpi4:
+- [Rpi3](https://zigate.fr/documentation/compatibilite-raspberry-pi-3-et-zero-w/)
+- [Rpi4](https://zigate.fr/documentation/compatibilite-raspberry-pi-4-b/)
+
+Note! Requires ZiGate firmware 3.1d and later
 - https://zigate.fr/tag/firmware/
 
 ## Testing new releases
