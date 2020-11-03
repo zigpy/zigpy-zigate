@@ -123,10 +123,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     protocol = Gateway(api, connected_future)
 
     port = device_config[CONF_DEVICE_PATH]
-    if port.startswith('pizigate:'):
-        await set_pizigate_running_mode()
-        port = port.split(':', 1)[1]
-    elif port == 'auto':
+    if port == 'auto':
         devices = list(serial.tools.list_ports.grep('ZiGate'))
         if devices:
             port = devices[0].device
@@ -141,8 +138,13 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
                 raise serial.SerialException("Unable to find Zigate using auto mode")
 
     if port.startswith('socket://'):
-        host, port = port.split(':', 1)  # 192.168.x.y:9999
-        port = int(port)
+        port = port.split('socket://', 1)[1]
+        if ':' in port:
+            host, port = port.split(':', 1)  # 192.168.x.y:9999
+            port = int(port)
+        else:
+            host = port
+            port = 9999
         _, protocol = await loop.create_connection(
             lambda: protocol,
             host, port)
