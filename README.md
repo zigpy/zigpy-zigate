@@ -27,6 +27,7 @@ Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a o
 
 ### Experimental Zigbee radio modules
 - [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/) (work in progress)
+- [Open Lumi Gateway](https://github.com/openlumi) - [DIY ZiGate WiFi bridge hacked from an Xiaomi Lumi Gateway with modded OpenWRT firmware](https://github.com/zigpy/zigpy-zigate/issues/59)
 
 ## Port configuration
 
