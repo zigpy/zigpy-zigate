@@ -25,12 +25,15 @@ def get_releases():
 def download(url, dest='/tmp'):
     filename = url.rsplit('/', 1)[1]
     LOGGER.info('Downloading %s to %s', url, dest)
-    r = requests.get(url, allow_redirects=True)
-    filename = os.path.join(dest, filename)
-    with open(filename, 'wb') as fp:
-        fp.write(r.content)
-    LOGGER.info('Done')
-    return filename
+    r = urllib.request.urlopen(url)
+    if r.status == 200:
+        filename = os.path.join(dest, filename)
+        with open(filename, 'wb') as fp:
+            fp.write(r.read())
+        LOGGER.info('Done')
+        return filename
+    else:
+        LOGGER.error('Error downloading %s %s',r.status, r.reason)
 
 
 def download_latest(dest='/tmp'):
