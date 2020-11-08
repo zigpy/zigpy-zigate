@@ -138,6 +138,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
                 raise serial.SerialException("Unable to find Zigate using auto mode")
 
     if is_zigate_wifi(port):
+        LOGGER.debug('ZiGate WiFi detected')
         port = port.split('socket://', 1)[1]
         if ':' in port:
             host, port = port.split(':', 1)  # 192.168.x.y:9999
@@ -151,8 +152,10 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     else:
         port = os.path.realpath(port)
         if is_pizigate(port):
+            LOGGER.debug('PiZiGate detected')
             await set_pizigate_running_mode()
         elif is_zigate_din:
+            LOGGER.debug('ZiGate USB DIN detected')
             await set_zigatedin_running_mode()
 
         _, protocol = await serial_asyncio.create_serial_connection(
