@@ -9,7 +9,6 @@
 # https://github.com/tjikkun/zigate-flasher
 
 import argparse
-import atexit
 import functools
 import itertools
 import logging
@@ -288,7 +287,7 @@ def select_flash(ser, flash_type):
         raise SystemExit(1)
 
 
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -304,9 +303,9 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r{0} |{1}| {2}% {3}'.format(prefix, bar, percent, suffix), end = printEnd)
+    print('\r{0} |{1}| {2}% {3}'.format(prefix, bar, percent, suffix), end=printEnd)
     # Print New Line on Complete
-    if iteration == total: 
+    if iteration == total:
         print()
 
 
@@ -490,8 +489,6 @@ def main():
             logger.exception("Could not open serial device %s", args.serialport)
             raise SystemExit(1)
 
-        # atexit.register(change_baudrate, ser, 38400)
-
         change_baudrate(ser, 115200)
         check_chip_id(ser)
         flash_type = get_flash_type(ser)
@@ -508,7 +505,6 @@ def main():
 
 #         if args.erase:
 #             erase_EEPROM(ser, args.pdm_only)
-
 
     if args.gpio:
         logger.info('Put PiZiGate in running mode')
