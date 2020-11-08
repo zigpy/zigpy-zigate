@@ -33,7 +33,7 @@ def download(url, dest='/tmp'):
         LOGGER.info('Done')
         return filename
     else:
-        LOGGER.error('Error downloading %s %s',r.status, r.reason)
+        LOGGER.error('Error downloading %s %s', r.status, r.reason)
 
 
 def download_latest(dest='/tmp'):
