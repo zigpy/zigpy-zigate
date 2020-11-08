@@ -132,7 +132,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                                 response[3], response[4], response[-1])
         elif msg == 0x8011:  # ACK Data
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
-            self._handle_frame_failure(response[4], response[0])
+            # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
+            # self._handle_frame_failure(response[4], response[0])
         elif msg == 0x8035:  # PDM Event
             try:
                 event = PDM_EVENT(response[0]).name
