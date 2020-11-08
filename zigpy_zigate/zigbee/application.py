@@ -35,7 +35,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def startup(self, auto_form=False):
         """Perform a complete application startup"""
         self._api = await ZiGate.new(self._config[CONF_DEVICE], self)
-        await self._api.set_raw_mode()
+        try:
+            await self._api.set_raw_mode()
+        except NoResponseError:
+            # retry, sometimes after reboot it fails for some reasons
+            await self._api.set_raw_mode()
         version, lqi = await self._api.version()
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])

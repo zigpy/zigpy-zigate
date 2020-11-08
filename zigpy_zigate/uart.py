@@ -63,12 +63,14 @@ class Gateway(asyncio.Protocol):
                                    length,
                                    len(frame) - 6)
                     self._buffer = self._buffer[endpos + 1:]
+                    endpos = self._buffer.find(self.END)
                     continue
                 if self._checksum(frame[:4], lqi, f_data) != checksum:
                     LOGGER.warning("Invalid checksum: %s, data: 0x%s",
                                    checksum,
                                    binascii.hexlify(frame).decode())
                     self._buffer = self._buffer[endpos + 1:]
+                    endpos = self._buffer.find(self.END)
                     continue
                 LOGGER.debug("Frame received: %s", binascii.hexlify(frame).decode())
                 self._api.data_received(cmd, f_data, lqi)
