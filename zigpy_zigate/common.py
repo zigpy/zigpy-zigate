@@ -35,11 +35,13 @@ async def set_pizigate_running_mode():
         import RPi.GPIO as GPIO
         LOGGER.info('Put PiZiGate in running mode')
         GPIO.setmode(GPIO.BCM)
+        GPIO.setup(17, GPIO.OUT)  # GPIO0
         GPIO.setup(27, GPIO.OUT)  # GPIO2
-        GPIO.output(27, GPIO.HIGH)  # GPIO2
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
+        GPIO.output(27, GPIO.HIGH)
         await asyncio.sleep(0.5)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
+        GPIO.output(17, GPIO.LOW)
+        await asyncio.sleep(0.5)
+        GPIO.output(17, GPIO.HIGH)
         await asyncio.sleep(0.5)
     except Exception as e:
         LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
@@ -51,11 +53,13 @@ async def set_pizigate_flashing_mode():
         import RPi.GPIO as GPIO
         LOGGER.info('Put PiZiGate in flashing mode')
         GPIO.setmode(GPIO.BCM)
+        GPIO.setup(17, GPIO.OUT)  # GPIO0
         GPIO.setup(27, GPIO.OUT)  # GPIO2
-        GPIO.output(27, GPIO.LOW)  # GPIO2
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
+        GPIO.output(27, GPIO.LOW)
         await asyncio.sleep(0.5)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
+        GPIO.output(17, GPIO.LOW)
+        await asyncio.sleep(0.5)
+        GPIO.output(17, GPIO.HIGH)
         await asyncio.sleep(0.5)
     except Exception as e:
         LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
