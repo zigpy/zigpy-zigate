@@ -149,6 +149,9 @@ class ZiGate:
     async def reset(self):
         self._command(0x0011, wait_status=False)
 
+    async def erase_persistent_data(self):
+        self._command(0x0012, wait_status=False)
+
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
         if not isinstance(channels, list):
