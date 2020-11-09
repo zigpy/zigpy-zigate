@@ -194,7 +194,8 @@ class ZiGate:
         if power < 0:
             power = 0
         data = t.serialize([power], COMMANDS[0x0806])
-        return await self.command(0x0806, data, wait_response=0x8806)
+        power, lqi = await self.command(0x0806, data, wait_response=0x8806)
+        return power[0]
 
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]

@@ -50,7 +50,7 @@ async def main():
     elif args.command == 'set_tx_power':
         power = int(args.value or 63)
         print('Set ZiGate TX Power to', power)
-        print(await api.set_tx_power(power))
+        print('Tx power set to', await api.set_tx_power(power))
     api.close()
 
 if __name__ == '__main__':
