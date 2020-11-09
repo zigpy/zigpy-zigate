@@ -43,6 +43,32 @@ __pizigate__ may requiert some adjustements on Rpi3 or Rpi4:
 Note! Requires ZiGate firmware 3.1d and later
 - https://zigate.fr/tag/firmware/
 
+## Flasher
+
+Python tool to flash your Zigate (Jennic JN5168)
+
+Thanks to Sander Hoentjen (tjikkun) we now have a flasher !
+[Original repo](https://github.com/tjikkun/zigate-flasher)
+
+### Flasher Usage
+
+```bash
+usage: python3 -m zigate.flasher [-h] -p {/dev/ttyUSB0} [-w WRITE] [-s SAVE] [-u] [-d] [--gpio] [--din]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p {/dev/ttyUSB0}, --serialport {/dev/ttyUSB0}
+                        Serial port, e.g. /dev/ttyUSB0
+  -w WRITE, --write WRITE
+                        Firmware bin to flash onto the chip
+  -s SAVE, --save SAVE  File to save the currently loaded firmware to
+  -u, --upgrade         Download and flash the lastest available firmware
+  -d, --debug           Set log level to DEBUG
+  --gpio                Configure GPIO for PiZiGate flash
+  --din                 Configure USB for ZiGate DIN flash
+
+```
+
 ## Testing new releases
 
 Testing a new release of the zigpy-zigate library before it is released in Home Assistant.
