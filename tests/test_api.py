@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import serial
 import serial_asyncio
-from asynctest import CoroutineMock, mock
+from .async_mock import AsyncMock, MagicMock, patch, sentinel
 
 import zigpy_zigate.config as config
 import zigpy_zigate.uart
@@ -15,13 +15,13 @@ DEVICE_CONFIG = config.SCHEMA_DEVICE({config.CONF_DEVICE_PATH: "/dev/null"})
 @pytest.fixture
 def api():
     api = zigate_api.ZiGate(DEVICE_CONFIG)
-    api._uart = mock.MagicMock()
+    api._uart = MagicMock()
     return api
 
 
 def test_set_application(api):
-    api.set_application(mock.sentinel.app)
-    assert api._app == mock.sentinel.app
+    api.set_application(sentinel.app)
+    assert api._app == sentinel.app
 
 
 @pytest.mark.asyncio
@@ -39,7 +39,7 @@ async def test_connect(monkeypatch):
 
 
 def test_close(api):
-    api._uart.close = mock.MagicMock()
+    api._uart.close = MagicMock()
     uart = api._uart
     api.close()
     assert uart.close.call_count == 1
@@ -47,7 +47,7 @@ def test_close(api):
 
 
 @pytest.mark.asyncio
-@mock.patch.object(zigpy_zigate.uart, "connect")
+@patch.object(zigpy_zigate.uart, "connect")
 async def test_api_new(conn_mck):
     """Test new class method."""
     api = await zigate_api.ZiGate.new(DEVICE_CONFIG, mock.sentinel.application)
