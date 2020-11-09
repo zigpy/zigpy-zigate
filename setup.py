@@ -67,7 +67,7 @@ setup(
     description="A library which communicates with ZiGate radios for zigpy",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="http://github.com/doudz/zigpy-zigate",
+    url="http://github.com/zigpy/zigpy-zigate",
     author="Sébastien RAMAGE",
     author_email="sebatien.ramage@gmail.com",
     license="GPL-3.0",
@@ -75,5 +75,7 @@ setup(
     install_requires=requires,
     tests_require=[
         'pytest',
+        'pytest-asyncio', 
+        'asynctest'
     ],
 )

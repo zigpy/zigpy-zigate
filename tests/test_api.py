@@ -57,7 +57,7 @@ async def test_api_new(conn_mck):
 
 
 @pytest.mark.asyncio
-@patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=CoroutineMock)
+@patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=AsyncMock)
 @patch.object(zigpy_zigate.uart, "connect")
 async def test_probe_success(mock_connect, mock_raw_mode):
     """Test device probing."""
