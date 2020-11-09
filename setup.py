@@ -75,7 +75,7 @@ setup(
     install_requires=requires,
     tests_require=[
         'pytest',
-        'pytest-asyncio', 
+        'pytest-asyncio',
         'asynctest'
     ],
 )
