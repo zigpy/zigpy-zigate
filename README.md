@@ -53,7 +53,7 @@ Thanks to Sander Hoentjen (tjikkun) we now have a flasher !
 ### Flasher Usage
 
 ```bash
-usage: python3 -m zigate.flasher [-h] -p {/dev/ttyUSB0} [-w WRITE] [-s SAVE] [-u] [-d] [--gpio] [--din]
+usage: python3 -m zigpy_zigate.tools.flasher [-h] -p {/dev/ttyUSB0} [-w WRITE] [-s SAVE] [-u] [-d] [--gpio] [--din]
 
 optional arguments:
   -h, --help            show this help message and exit
