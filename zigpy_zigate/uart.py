@@ -125,18 +125,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
 
     port = device_config[CONF_DEVICE_PATH]
     if port == 'auto':
-        devices = list(serial.tools.list_ports.grep('ZiGate'))
-        if devices:
-            port = devices[0].device
-            LOGGER.info('ZiGate found at %s', port)
-        else:
-            devices = list(serial.tools.list_ports.grep('067b:2303|CP2102'))
-            if devices:
-                port = devices[0].device
-                LOGGER.info('ZiGate probably found at %s', port)
-            else:
-                LOGGER.error('Unable to find ZiGate using auto mode')
-                raise serial.SerialException("Unable to find Zigate using auto mode")
+        port = c.discover_port()
 
     if c.is_zigate_wifi(port):
         LOGGER.debug('ZiGate WiFi detected')

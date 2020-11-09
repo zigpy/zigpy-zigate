@@ -7,6 +7,23 @@ import asyncio
 LOGGER = logging.getLogger(__name__)
 
 
+def discover_port():
+    """ discover zigate port """
+    devices = list(serial.tools.list_ports.grep('ZiGate'))
+    if devices:
+        port = devices[0].device
+        LOGGER.info('ZiGate found at %s', port)
+    else:
+        devices = list(serial.tools.list_ports.grep('067b:2303|CP2102'))
+        if devices:
+            port = devices[0].device
+            LOGGER.info('ZiGate probably found at %s', port)
+        else:
+            LOGGER.error('Unable to find ZiGate using auto mode')
+            raise serial.SerialException("Unable to find Zigate using auto mode")
+    return port
+
+
 def is_pizigate(port):
     """ detect pizigate """
     # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
