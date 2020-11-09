@@ -1,5 +1,6 @@
 import re
 import serial.tools.list_ports
+import serial
 import usb
 import logging
 import asyncio

@@ -16,7 +16,7 @@ import struct
 from operator import xor
 import datetime
 from .firmware import download_latest
-from .transport import discover_port
+from zigpy_zigate import common as c
 import time
 import serial
 from serial.tools.list_ports import comports
@@ -34,7 +34,7 @@ except Exception:
 import usb
 
 
-logger = logging.getLogger('ZiGate Flasher')
+LOGGER = logging.getLogger(__name__)
 _responses = {}
 
 ZIGATE_CHIP_ID = 0x10408686
@@ -47,7 +47,7 @@ class Command:
 
     def __init__(self, type_, fmt=None, raw=False):
         assert not (raw and fmt), 'Raw commands cannot use built-in struct formatting'
-        logger.debug('Command {} {} {}'.format(type_, fmt, raw))
+        LOGGER.debug('Command {} {} {}'.format(type_, fmt, raw))
         self.type = type_
         self.raw = raw
         if fmt:
@@ -78,7 +78,7 @@ class Command:
 class Response:
 
     def __init__(self, type_, data, chksum):
-        logger.debug('Response {} {} {}'.format(type_, data, chksum))
+        LOGGER.debug('Response {} {} {}'.format(type_, data, chksum))
         self.type = type_
         self.data = data[1:]
         self.chksum = chksum
@@ -120,18 +120,18 @@ def prepare(type_, data):
 def read_response(ser):
     length = ser.read()
     length = int.from_bytes(length, 'big')
-    logger.debug('read_response length {}'.format(length))
+    LOGGER.debug('read_response length {}'.format(length))
     answer = ser.read(length)
-    logger.debug('read_response answer {}'.format(answer))
+    LOGGER.debug('read_response answer {}'.format(answer))
     return _unpack_raw_message(length, answer)
     # type_, data, chksum = struct.unpack('!B%dsB' % (length - 2), answer)
     # return {'type': type_, 'data': data, 'chksum': chksum}
 
 
 def _unpack_raw_message(length, decoded):
-    logger.debug('unpack raw message {} {}'.format(length, decoded))
+    LOGGER.debug('unpack raw message {} {}'.format(length, decoded))
     if len(decoded) != length or length < 2:
-        logger.exception("Unpack failed, length: %d, msg %s" % (length, decoded.hex()))
+        LOGGER.exception("Unpack failed, length: %d, msg %s" % (length, decoded.hex()))
         return
     type_, data, chksum = \
         struct.unpack('!B%dsB' % (length - 2), decoded)
@@ -238,7 +238,7 @@ def change_baudrate(ser, baudrate):
 
     res = read_response(ser)
     if not res or not res.ok:
-        logger.exception('Change baudrate failed')
+        LOGGER.exception('Change baudrate failed')
         raise SystemExit(1)
 
     ser.baudrate = baudrate
@@ -248,10 +248,10 @@ def check_chip_id(ser):
     ser.write(req_chip_id())
     res = read_response(ser)
     if not res or not res.ok:
-        logger.exception('Getting Chip ID failed')
+        LOGGER.exception('Getting Chip ID failed')
         raise SystemExit(1)
     if res.chip_id != ZIGATE_CHIP_ID:
-        logger.exception('This is not a supported chip, patches welcome')
+        LOGGER.exception('This is not a supported chip, patches welcome')
         raise SystemExit(1)
 
 
@@ -314,7 +314,7 @@ def write_flash_to_file(ser, filename):
     cur = ZIGATE_FLASH_START
     flash_end = ZIGATE_FLASH_END
 
-    logger.info('Backup firmware to %s', filename)
+    LOGGER.info('Backup firmware to %s', filename)
     with open(filename, 'wb') as fd:
         fd.write(ZIGATE_BINARY_VERSION)
         read_bytes = 128
@@ -332,11 +332,11 @@ def write_flash_to_file(ser, filename):
             printProgressBar(cur, flash_end, 'Reading')
             cur += read_bytes
     printProgressBar(flash_end, flash_end, 'Reading')
-    logger.info('Backup firmware done')
+    LOGGER.info('Backup firmware done')
 
 
 def write_file_to_flash(ser, filename):
-    logger.info('Writing new firmware from %s', filename)
+    LOGGER.info('Writing new firmware from %s', filename)
     with open(filename, 'rb') as fd:
         ser.write(req_flash_erase())
         res = read_response(ser)
@@ -365,7 +365,7 @@ def write_file_to_flash(ser, filename):
             printProgressBar(cur, flash_end, 'Writing')
             cur += read_bytes
     printProgressBar(flash_end, flash_end, 'Writing')
-    logger.info('Writing new firmware done')
+    LOGGER.info('Writing new firmware done')
 
 
 def erase_EEPROM(ser, pdm_only=False):
@@ -381,18 +381,19 @@ def flash(serialport='auto', write=None, save=None, erase=False, pdm_only=False)
     """
     Read or write firmware
     """
-    serialport = discover_port(serialport)
+    if serialport == 'auto':
+        serialport = c.discover_port()
     try:
         ser = serial.Serial(serialport, 38400, timeout=5)
     except serial.SerialException:
-        logger.exception("Could not open serial device %s", serialport)
+        LOGGER.exception("Could not open serial device %s", serialport)
         return
 
     change_baudrate(ser, 115200)
     check_chip_id(ser)
     flash_type = get_flash_type(ser)
     mac_address = get_mac(ser)
-    logger.info('Found MAC-address: %s', mac_address)
+    LOGGER.info('Found MAC-address: %s', mac_address)
     if write or save or erase:
         select_flash(ser, flash_type)
 
@@ -446,12 +447,12 @@ def main():
     parser.add_argument('--gpio', help='Configure GPIO for PiZiGate flash', action='store_true', default=False)
     parser.add_argument('--din', help='Configure USB for ZiGate DIN flash', action='store_true', default=False)
     args = parser.parse_args()
-    logger.setLevel(logging.INFO)
+    LOGGER.setLevel(logging.INFO)
     if args.debug:
-        logger.setLevel(logging.DEBUG)
+        LOGGER.setLevel(logging.DEBUG)
 
     if args.gpio:
-        logger.info('Put PiZiGate in flash mode')
+        LOGGER.info('Put PiZiGate in flash mode')
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(27, GPIO.OUT)  # GPIO2
         GPIO.output(27, GPIO.LOW)  # GPIO2
@@ -460,10 +461,10 @@ def main():
         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
         time.sleep(0.5)
     elif args.din:
-        logger.info('Put ZiGate DIN in flash mode')
+        LOGGER.info('Put ZiGate DIN in flash mode')
         dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
         if not dev:
-            logger.error('ZiGate DIN not found.')
+            LOGGER.error('ZiGate DIN not found.')
             return
         ftdi_set_bitmode(dev, 0x00)
         time.sleep(0.5)
@@ -486,14 +487,14 @@ def main():
         try:
             ser = serial.Serial(args.serialport, 38400, timeout=5)
         except serial.SerialException:
-            logger.exception("Could not open serial device %s", args.serialport)
+            LOGGER.exception("Could not open serial device %s", args.serialport)
             raise SystemExit(1)
 
         change_baudrate(ser, 115200)
         check_chip_id(ser)
         flash_type = get_flash_type(ser)
         mac_address = get_mac(ser)
-        logger.info('Found MAC-address: %s', mac_address)
+        LOGGER.info('Found MAC-address: %s', mac_address)
         if args.write or args.save:  # or args.erase:
             select_flash(ser, flash_type)
 
@@ -507,14 +508,14 @@ def main():
 #             erase_EEPROM(ser, args.pdm_only)
 
     if args.gpio:
-        logger.info('Put PiZiGate in running mode')
+        LOGGER.info('Put PiZiGate in running mode')
         GPIO.output(27, GPIO.HIGH)  # GPIO2
         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
         time.sleep(0.5)
         GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
         time.sleep(0.5)
     elif args.din:
-        logger.info('Put ZiGate DIN in running mode')
+        LOGGER.info('Put ZiGate DIN in running mode')
         ftdi_set_bitmode(dev, 0xC8)
         time.sleep(0.5)
         ftdi_set_bitmode(dev, 0xCC)
