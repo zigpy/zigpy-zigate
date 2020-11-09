@@ -50,15 +50,15 @@ def test_close(api):
 @patch.object(zigpy_zigate.uart, "connect")
 async def test_api_new(conn_mck):
     """Test new class method."""
-    api = await zigate_api.ZiGate.new(DEVICE_CONFIG, mock.sentinel.application)
+    api = await zigate_api.ZiGate.new(DEVICE_CONFIG, sentinel.application)
     assert isinstance(api, zigate_api.ZiGate)
     assert conn_mck.call_count == 1
     assert conn_mck.await_count == 1
 
 
 @pytest.mark.asyncio
-@mock.patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=CoroutineMock)
-@mock.patch.object(zigpy_zigate.uart, "connect")
+@patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=CoroutineMock)
+@patch.object(zigpy_zigate.uart, "connect")
 async def test_probe_success(mock_connect, mock_raw_mode):
     """Test device probing."""
 
@@ -72,8 +72,8 @@ async def test_probe_success(mock_connect, mock_raw_mode):
 
 
 @pytest.mark.asyncio
-@mock.patch.object(zigate_api.ZiGate, "set_raw_mode", side_effect=asyncio.TimeoutError)
-@mock.patch.object(zigpy_zigate.uart, "connect")
+@patch.object(zigate_api.ZiGate, "set_raw_mode", side_effect=asyncio.TimeoutError)
+@patch.object(zigpy_zigate.uart, "connect")
 @pytest.mark.parametrize(
     "exception",
     (asyncio.TimeoutError, serial.SerialException, zigate_api.NoResponseError),
