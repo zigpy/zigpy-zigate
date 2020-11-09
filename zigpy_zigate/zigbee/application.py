@@ -40,6 +40,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         except NoResponseError:
             # retry, sometimes after reboot it fails for some reasons
             await self._api.set_raw_mode()
+        await self._api.set_time()
         version, lqi = await self._api.version()
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])

@@ -3,6 +3,7 @@ import binascii
 import functools
 import logging
 import enum
+import datetime
 from typing import Any, Dict
 
 import serial
@@ -25,6 +26,7 @@ RESPONSES = {
     0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
     0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
+    0x8017: (t.uint32_t,),
     0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     0x8035: (t.uint8_t, t.uint32_t),
     0x8048: (t.EUI64, t.uint8_t),
@@ -34,6 +36,8 @@ RESPONSES = {
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
+    0x0016: (t.uint32_t,),
+    0x0018: (t.uint8_t,),
     0x0020: (t.uint64_t,),
     0x0021: (t.uint32_t,),
     0x0026: (t.EUI64, t.EUI64),
@@ -139,6 +143,12 @@ class ZiGate:
     async def version(self):
         return await self.command(0x0010, wait_response=0x8010)
 
+    async def version_str(self):
+        version, lqi = await self.version()
+        version = '{:x}'.format(version[1])
+        version = '{}.{}'.format(version[0], version[1:])
+        return version
+
     async def get_network_state(self):
         return await self.command(0x0009, wait_response=0x8009)
 
@@ -151,6 +161,24 @@ class ZiGate:
 
     async def erase_persistent_data(self):
         self._command(0x0012, wait_status=False)
+    
+    async def set_time(self, dt=None):
+        """ set internal time
+        if timestamp is None, now is used
+        """
+        dt = dt or datetime.datetime.now()
+        timestamp = int((dt - datetime.datetime(2000, 1, 1)).total_seconds())
+        data = t.serialize([timestamp], COMMANDS[0x0016])
+        self._command(0x0016, data)
+
+    async def get_time_server(self):
+        timestamp, lqi = await self._command(0x0017, wait_response=0x8017)
+        dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
+        return dt
+    
+    async def set_led(self, enable=True):
+        data = t.serialize([enable], COMMANDS[0x0018])
+        await self.command(0x0018, data)
 
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
