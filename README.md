@@ -102,6 +102,8 @@ Tagged versions are also released via PyPI
 Documents that layout the serial protocol used for ZiGate serial interface communication can be found here:
 
 - https://github.com/fairecasoimeme/ZiGate/tree/master/Protocol
+- https://github.com/Neonox31/zigate
+- https://github.com/nouknouk/node-zigate
 
 ## How to contribute
 
