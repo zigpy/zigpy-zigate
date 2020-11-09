@@ -32,17 +32,20 @@ RESPONSES = {
     0x8048: (t.EUI64, t.uint8_t),
     0x8701: (t.uint8_t, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
+    0x8806: (t.uint8_t,),
 }
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
     0x0016: (t.uint32_t,),
     0x0018: (t.uint8_t,),
+    0x0019: (t.uint8_t,),
     0x0020: (t.uint64_t,),
     0x0021: (t.uint32_t,),
     0x0026: (t.EUI64, t.EUI64),
     0x0049: (t.NWK, t.uint8_t, t.uint8_t),
     0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
+    0x0806: (t.uint8_t,),
 }
 
 
@@ -179,6 +182,19 @@ class ZiGate:
     async def set_led(self, enable=True):
         data = t.serialize([enable], COMMANDS[0x0018])
         await self.command(0x0018, data)
+
+    async def set_certification(self, typ='CE'):
+        cert = {'CE': 1, 'FCC': 2}[typ]
+        data = t.serialize([cert], COMMANDS[0x0019])
+        await self.command(0x0019, data)
+
+    async def set_tx_power(self, power=63):
+        if power > 63:
+            power = 63
+        if power < 0:
+            power = 0
+        data = t.serialize([power], COMMANDS[0x0806])
+        return await self.command(0x0806, data, wait_response=0x8806)
 
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
