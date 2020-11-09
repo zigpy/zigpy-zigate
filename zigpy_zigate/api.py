@@ -199,7 +199,6 @@ class ZiGate:
             await asyncio.wait_for(api._probe(), timeout=COMMAND_TIMEOUT)
             return True
         except (
-            StopIteration,
             asyncio.TimeoutError,
             serial.SerialException,
             zigpy.exceptions.ZigbeeException,
@@ -216,8 +215,11 @@ class ZiGate:
 
     async def _probe(self) -> None:
         """Open port and try sending a command"""
-        device = next(serial.tools.list_ports.grep(self._config[zigpy_zigate.config.CONF_DEVICE_PATH]))
-        if device.description == 'ZiGate':
-            return
+        try:
+            device = next(serial.tools.list_ports.grep(self._config[zigpy_zigate.config.CONF_DEVICE_PATH]))
+            if device.description == 'ZiGate':
+                return
+        except StopIteration:
+            pass
         await self.connect()
         await self.set_raw_mode()
