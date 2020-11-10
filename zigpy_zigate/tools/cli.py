@@ -5,7 +5,6 @@
 import argparse
 import asyncio
 import logging
-import time
 from zigpy_zigate.api import ZiGate
 import zigpy_zigate.config
 
@@ -14,8 +13,8 @@ async def main():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to start",
-    choices=["version", "reset", "erase_persistent",
-             "set_time", "get_time", "set_led", "set_certification", "set_tx_power"])
+                        choices=["version", "reset", "erase_persistent",
+                                 "set_time", "get_time", "set_led", "set_certification", "set_tx_power"])
     parser.add_argument("-p", "--port", help="Port", default='auto')
     parser.add_argument("-d", "--debug", help="Debug log", action='store_true')
     parser.add_argument("-v", "--value", help="Set command's value")

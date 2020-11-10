@@ -88,7 +88,6 @@ class ZiGate:
 
         self.network_state = None
 
-
     @classmethod
     async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
         api = cls(config)
@@ -128,7 +127,6 @@ class ZiGate:
         tries = 2
         while tries > 0:
             tries -= 1
-            
             await self._lock.acquire()
             try:
                 return await asyncio.wait_for(
@@ -176,7 +174,7 @@ class ZiGate:
 
     async def erase_persistent_data(self):
         self._command(0x0012, wait_status=False)
-    
+
     async def set_time(self, dt=None):
         """ set internal time
         if timestamp is None, now is used
@@ -190,7 +188,7 @@ class ZiGate:
         timestamp, lqi = await self._command(0x0017, wait_response=0x8017)
         dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
         return dt
-    
+
     async def set_led(self, enable=True):
         data = t.serialize([enable], COMMANDS[0x0018])
         await self.command(0x0018, data)
