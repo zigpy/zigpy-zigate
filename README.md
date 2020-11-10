@@ -43,12 +43,12 @@ __pizigate__ may requiert some adjustements on Rpi3 or Rpi4:
 Note! Requires ZiGate firmware 3.1d and later
 - https://zigate.fr/tag/firmware/
 
-## Flasher
+## Flasher (ZiGate Firmware Tool)
 
-Python tool to flash your Zigate (Jennic JN5168)
+zigpy-zigate has an integrated Python "flasher" tool to flash firmware updates on your ZiGate (NXP Jennic JN5168).
 
-Thanks to Sander Hoentjen (tjikkun) we now have a flasher !
-[Original repo](https://github.com/tjikkun/zigate-flasher)
+Thanks to Sander Hoentjen (tjikkun) zigpy-zigate now has an integrated firmware flasher tool!
+- [tjikkun original zigate-flasher repo](https://github.com/tjikkun/zigate-flasher)
 
 ### Flasher Usage
 
