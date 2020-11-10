@@ -14,11 +14,11 @@ ZiGate is a open source ZigBee adapter hardware that was initially launched on K
 - https://www.zigate.fr
 - https://www.kickstarter.com/projects/1361563794/zigate-universal-zigbee-gateway-for-smarthome
 
-## Compatible hardware
+## Hardware and firmware compatibility
 The ZiGate USB adapter communicates via a PL-2303HX USB to Serial Bridge Controller module by Prolific. 
 There's also a Wi-Fi adapter to communicate with ZiGate over network.
 
-Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a or later to work with this zigpy-zigate module.
+Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.1a firmware or later to work with this zigpy-zigate module, however ZiGate 3.1d firmware or later is recommended as it contains a specific bug-fix related to zigpy.
 
 ### Known working Zigbee radio modules
 - [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/)
@@ -36,12 +36,9 @@ Note! ZiGate open source ZigBee adapter hardware requires ZiGate firmware 3.1a o
 - To configure __pizigate__ port, specify the port, example : `/dev/serial0` or `/dev/ttyAMA0`
 - To configure __wifi__ ZiGate, manually specify IP address and port, example : `socket://192.168.1.10:9999` 
 
-__pizigate__ may requiert some adjustements on Rpi3 or Rpi4:
-- [Rpi3](https://zigate.fr/documentation/compatibilite-raspberry-pi-3-et-zero-w/)
-- [Rpi4](https://zigate.fr/documentation/compatibilite-raspberry-pi-4-b/)
-
-Note! Requires ZiGate firmware 3.1d and later
-- https://zigate.fr/tag/firmware/
+__pizigate__ does require some additional adjustements on Raspberry Pi 3/Zero, and 4:
+- [Raspberry Pi 3 and Raspberry Pi Zero configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-3-et-zero-w/)
+- [Raspberry Pi 4 configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-4-b/)
 
 ## Flasher (ZiGate Firmware Tool)
 
