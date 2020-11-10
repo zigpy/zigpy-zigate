@@ -110,7 +110,7 @@ class ZiGate:
         LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
                      binascii.hexlify(data), lqi)
         if cmd not in RESPONSES:
-            LOGGER.error('Received unhandled response 0x{:04x}'.format(cmd))
+            LOGGER.error('Received unhandled response 0x%04x', cmd)
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:
@@ -132,9 +132,9 @@ class ZiGate:
                     timeout=COMMAND_TIMEOUT
                 )
             except asyncio.TimeoutError:
-                LOGGER.warning("No response to command 0x{:04x}".format(cmd))
+                LOGGER.warning("No response to command 0x%04x", cmd)
                 if tries > 0:
-                    LOGGER.warning("Retry command 0x{:04x}".format(cmd))
+                    LOGGER.warning("Retry command 0x%04x", cmd)
                 else:
                     raise NoResponseError
 

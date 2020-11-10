@@ -37,7 +37,7 @@ class Gateway(asyncio.Protocol):
 
     def send(self, cmd, data=b''):
         """Send data, taking care of escaping and framing"""
-        LOGGER.debug("Send: %s %s", hex(cmd), binascii.hexlify(data))
+        LOGGER.debug("Send: 0x%04x %s", cmd, binascii.hexlify(data))
         length = len(data)
         byte_head = struct.pack('!HH', cmd, length)
         checksum = self._checksum(byte_head, data)
