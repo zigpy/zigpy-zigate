@@ -2,13 +2,15 @@ import asyncio
 import binascii
 import logging
 import struct
+import os.path
 from typing import Any, Dict
 
 import serial  # noqa
 import serial.tools.list_ports
 import serial_asyncio
 
-from zigpy_zigate.config import CONF_DEVICE_PATH
+from .config import CONF_DEVICE_PATH
+from . import common as c
 
 LOGGER = logging.getLogger(__name__)
 ZIGATE_BAUDRATE = 115200
@@ -35,7 +37,7 @@ class Gateway(asyncio.Protocol):
 
     def send(self, cmd, data=b''):
         """Send data, taking care of escaping and framing"""
-        LOGGER.debug("Send: %s %s", hex(cmd), binascii.hexlify(data))
+        LOGGER.debug("Send: 0x%04x %s", cmd, binascii.hexlify(data))
         length = len(data)
         byte_head = struct.pack('!HH', cmd, length)
         checksum = self._checksum(byte_head, data)
@@ -61,12 +63,14 @@ class Gateway(asyncio.Protocol):
                                    length,
                                    len(frame) - 6)
                     self._buffer = self._buffer[endpos + 1:]
+                    endpos = self._buffer.find(self.END)
                     continue
                 if self._checksum(frame[:4], lqi, f_data) != checksum:
                     LOGGER.warning("Invalid checksum: %s, data: 0x%s",
                                    checksum,
                                    binascii.hexlify(frame).decode())
                     self._buffer = self._buffer[endpos + 1:]
+                    endpos = self._buffer.find(self.END)
                     continue
                 LOGGER.debug("Frame received: %s", binascii.hexlify(frame).decode())
                 self._api.data_received(cmd, f_data, lqi)
@@ -120,48 +124,40 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     protocol = Gateway(api, connected_future)
 
     port = device_config[CONF_DEVICE_PATH]
-    if port.startswith('pizigate:'):
-        await set_pizigate_running_mode()
-        port = port.split(':', 1)[1]
-    elif port == 'auto':
-        devices = list(serial.tools.list_ports.grep('ZiGate'))
-        if devices:
-            port = devices[0].device
-            LOGGER.info('ZiGate found at %s', port)
-        else:
-            devices = list(serial.tools.list_ports.grep('067b:2303|CP2102'))
-            if devices:
-                port = devices[0].device
-                LOGGER.info('ZiGate probably found at %s', port)
-            else:
-                LOGGER.error('Unable to find ZiGate using auto mode')
-                raise serial.SerialException("Unable to find Zigate using auto mode")
+    if port == 'auto':
+        port = c.discover_port()
 
-    _, protocol = await serial_asyncio.create_serial_connection(
-        loop,
-        lambda: protocol,
-        url=port,
-        baudrate=ZIGATE_BAUDRATE,
-        parity=serial.PARITY_NONE,
-        stopbits=serial.STOPBITS_ONE,
-        xonxoff=False,
-    )
+    if c.is_zigate_wifi(port):
+        LOGGER.debug('ZiGate WiFi detected')
+        port = port.split('socket://', 1)[1]
+        if ':' in port:
+            host, port = port.split(':', 1)  # 192.168.x.y:9999
+            port = int(port)
+        else:
+            host = port
+            port = 9999
+        _, protocol = await loop.create_connection(
+            lambda: protocol,
+            host, port)
+    else:
+        port = os.path.realpath(port)
+        if c.is_pizigate(port):
+            LOGGER.debug('PiZiGate detected')
+            await c.set_pizigate_running_mode()
+        elif c.is_zigate_din:
+            LOGGER.debug('ZiGate USB DIN detected')
+            await c.set_zigatedin_running_mode()
+
+        _, protocol = await serial_asyncio.create_serial_connection(
+            loop,
+            lambda: protocol,
+            url=port,
+            baudrate=ZIGATE_BAUDRATE,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            xonxoff=False,
+        )
 
     await connected_future
 
     return protocol
-
-
-async def set_pizigate_running_mode():
-    try:
-        import RPi.GPIO as GPIO
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(27, GPIO.OUT)  # GPIO2
-        GPIO.output(27, GPIO.HIGH)  # GPIO2
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
-        await asyncio.sleep(0.5)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
-        await asyncio.sleep(0.5)
-    except Exception as e:
-        LOGGER.error('Unable to set PiZiGate GPIO, please check configuration')
-        LOGGER.error(str(e))

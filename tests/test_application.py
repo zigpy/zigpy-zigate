@@ -13,11 +13,13 @@ APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
         config.CONF_DATABASE: None,
     }
 )
-
+FAKE_FIRMWARE_VERSION = '3.1z'
 
 @pytest.fixture
 def app():
-    return zigpy_zigate.zigbee.application.ControllerApplication(APP_CONFIG)
+    a = zigpy_zigate.zigbee.application.ControllerApplication(APP_CONFIG)
+    a.version = FAKE_FIRMWARE_VERSION
+    return a
 
 
 def test_zigpy_ieee(app):
@@ -30,3 +32,8 @@ def test_zigpy_ieee(app):
 
     dst_addr = app.get_dst_address(cluster)
     assert dst_addr.serialize() == b"\x03" + data[::-1] + b"\x01"
+
+
+def test_model_detection(app):
+    device = zigpy_zigate.zigbee.application.ZiGateDevice(app, 0, 0)
+    assert device.model == 'ZiGate USB-TTL {}'.format(FAKE_FIRMWARE_VERSION)

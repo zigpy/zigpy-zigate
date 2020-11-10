@@ -2,6 +2,8 @@ import asyncio
 import binascii
 import functools
 import logging
+import enum
+import datetime
 from typing import Any, Dict
 
 import serial
@@ -17,26 +19,58 @@ LOGGER = logging.getLogger(__name__)
 COMMAND_TIMEOUT = 1.5
 
 RESPONSES = {
-    0x004D: (t.NWK, t.EUI64, t.uint8_t),
+    0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.Address, t.Address, t.Bytes),
     0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
+    0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
+    0x8017: (t.uint32_t,),
     0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
+    0x8035: (t.uint8_t, t.uint32_t),
     0x8048: (t.EUI64, t.uint8_t),
     0x8701: (t.uint8_t, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
+    0x8806: (t.uint8_t,),
 }
 
 COMMANDS = {
     0x0002: (t.uint8_t,),
+    0x0016: (t.uint32_t,),
+    0x0018: (t.uint8_t,),
+    0x0019: (t.uint8_t,),
     0x0020: (t.uint64_t,),
     0x0021: (t.uint32_t,),
     0x0026: (t.EUI64, t.EUI64),
     0x0049: (t.NWK, t.uint8_t, t.uint8_t),
     0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
+    0x0806: (t.uint8_t,),
 }
+
+
+class AutoEnum(enum.IntEnum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count
+
+
+class PDM_EVENT(AutoEnum):
+    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = enum.auto()
+    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = enum.auto()
+    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = enum.auto()
+    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = enum.auto()
+    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = enum.auto()
+    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = enum.auto()
 
 
 class NoResponseError(zigpy.exceptions.APIException):
@@ -50,6 +84,7 @@ class ZiGate:
         self._uart = None
         self._awaiting = {}
         self._status_awaiting = {}
+        self._lock = asyncio.Lock()
 
         self.network_state = None
 
@@ -76,7 +111,7 @@ class ZiGate:
         LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
                      binascii.hexlify(data), lqi)
         if cmd not in RESPONSES:
-            LOGGER.error('Received unhandled response %s', hex(cmd))
+            LOGGER.error('Received unhandled response 0x%04x', cmd)
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:
@@ -89,19 +124,28 @@ class ZiGate:
         self.handle_callback(cmd, data, lqi)
 
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True):
-        try:
-            return await asyncio.wait_for(
-                self._command(cmd, data, wait_response, wait_status),
-                timeout=COMMAND_TIMEOUT
-            )
-        except asyncio.TimeoutError:
-            LOGGER.warning("No response to command 0x{:04x}".format(cmd))
-            raise NoResponseError
+        tries = 2
+        while tries > 0:
+            tries -= 1
+            await self._lock.acquire()
+            try:
+                return await asyncio.wait_for(
+                    self._command(cmd, data, wait_response, wait_status),
+                    timeout=COMMAND_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                LOGGER.warning("No response to command 0x%04x", cmd)
+                if tries > 0:
+                    LOGGER.warning("Retry command 0x%04x", cmd)
+                else:
+                    raise NoResponseError
+            finally:
+                self._lock.release()
 
     def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
-        fut = asyncio.Future()
         if wait_status:
+            fut = asyncio.Future()
             self._status_awaiting[cmd] = fut
         if wait_response:
             fut = asyncio.Future()
@@ -112,6 +156,12 @@ class ZiGate:
     async def version(self):
         return await self.command(0x0010, wait_response=0x8010)
 
+    async def version_str(self):
+        version, lqi = await self.version()
+        version = '{:x}'.format(version[1])
+        version = '{}.{}'.format(version[0], version[1:])
+        return version
+
     async def get_network_state(self):
         return await self.command(0x0009, wait_response=0x8009)
 
@@ -121,6 +171,41 @@ class ZiGate:
 
     async def reset(self):
         self._command(0x0011, wait_status=False)
+
+    async def erase_persistent_data(self):
+        self._command(0x0012, wait_status=False)
+
+    async def set_time(self, dt=None):
+        """ set internal time
+        if timestamp is None, now is used
+        """
+        dt = dt or datetime.datetime.now()
+        timestamp = int((dt - datetime.datetime(2000, 1, 1)).total_seconds())
+        data = t.serialize([timestamp], COMMANDS[0x0016])
+        self._command(0x0016, data)
+
+    async def get_time_server(self):
+        timestamp, lqi = await self._command(0x0017, wait_response=0x8017)
+        dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
+        return dt
+
+    async def set_led(self, enable=True):
+        data = t.serialize([enable], COMMANDS[0x0018])
+        await self.command(0x0018, data)
+
+    async def set_certification(self, typ='CE'):
+        cert = {'CE': 1, 'FCC': 2}[typ]
+        data = t.serialize([cert], COMMANDS[0x0019])
+        await self.command(0x0019, data)
+
+    async def set_tx_power(self, power=63):
+        if power > 63:
+            power = 63
+        if power < 0:
+            power = 0
+        data = t.serialize([power], COMMANDS[0x0806])
+        power, lqi = await self.command(0x0806, data, wait_response=0x8806)
+        return power[0]
 
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
@@ -188,5 +273,11 @@ class ZiGate:
 
     async def _probe(self) -> None:
         """Open port and try sending a command"""
+        try:
+            device = next(serial.tools.list_ports.grep(self._config[zigpy_zigate.config.CONF_DEVICE_PATH]))
+            if device.description == 'ZiGate':
+                return
+        except StopIteration:
+            pass
         await self.connect()
         await self.set_raw_mode()

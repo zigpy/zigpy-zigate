@@ -9,8 +9,9 @@ import zigpy.types
 import zigpy.util
 
 from zigpy_zigate import types as t
-from zigpy_zigate.api import NoResponseError, ZiGate
-from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA, SCHEMA_DEVICE
+from zigpy_zigate import common as c
+from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
+from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._api: Optional[ZiGate] = None
 
         self._pending = {}
+        self._pending_join = []
 
         self._nwk = 0
         self._ieee = 0
@@ -35,10 +37,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         """Perform a complete application startup"""
         self._api = await ZiGate.new(self._config[CONF_DEVICE], self)
         await self._api.set_raw_mode()
+        await self._api.set_time()
         version, lqi = await self._api.version()
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])
         self.version = version
+        if version < '3.1d':
+            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.1d or newer')
 
         network_state, lqi = await self._api.get_network_state()
         should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
@@ -100,6 +105,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             ieee = zigpy.types.EUI64(response[1])
             parent_nwk = 0
             self.handle_join(nwk, ieee, parent_nwk)
+            # Temporary disable two stages pairing due to firmware bug
+            # rejoin = response[3]
+            # if nwk in self._pending_join or rejoin:
+            #     LOGGER.debug('Finish pairing {} (2nd device announce)'.format(nwk))
+            #     if nwk in self._pending_join:
+            #         self._pending_join.remove(nwk)
+            #     self.handle_join(nwk, ieee, parent_nwk)
+            # else:
+            #     LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
+            #     self._pending_join.append(nwk)
         elif msg == 0x8002:
             try:
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
@@ -117,7 +132,18 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_message(device, response[1],
                                 response[2],
                                 response[3], response[4], response[-1])
+        elif msg == 0x8011:  # ACK Data
+            LOGGER.debug('ACK Data received %s %s', response[4], response[0])
+            # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
+            # self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x8035:  # PDM Event
+            try:
+                event = PDM_EVENT(response[0]).name
+            except ValueError:
+                event = 'Unknown event'
+            LOGGER.debug('PDM Event %s %s, record %s', response[0], event, response[1])
         elif msg == 0x8702:  # APS Data confirm Fail
+            LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
 
     def _handle_frame_failure(self, message_tag, status):
@@ -135,28 +161,26 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
         LOGGER.debug('request %s',
                      (device.nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
-        req_id = self.get_sequence()
-        send_fut = asyncio.Future()
-        self._pending[req_id] = send_fut
         try:
             v, lqi = await self._api.raw_aps_data_request(device.nwk, src_ep, dst_ep, profile, cluster, data)
         except NoResponseError:
             return 1, "ZiGate doesn't answer to command"
+        req_id = v[1]
+        send_fut = asyncio.Future()
+        self._pending[req_id] = send_fut
 
         if v[0] != 0:
             self._pending.pop(req_id)
             return v[0], "Message send failure {}".format(v[0])
 
-        # Commented out for now
-        # Currently (Firmware 3.1a) only send APS Data confirm in case of failure
-        # https://github.com/fairecasoimeme/ZiGate/issues/239
-#         try:
-#             v = await asyncio.wait_for(send_fut, 120)
-#         except asyncio.TimeoutError:
-#             return 1, "timeout waiting for message %s send ACK" % (sequence, )
-#         finally:
-#             self._pending.pop(req_id)
-#         return v, "Message sent"
+        # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
+        # try:
+        #     v = await asyncio.wait_for(send_fut, 120)
+        # except asyncio.TimeoutError:
+        #     return 1, "timeout waiting for message %s send ACK" % (sequence, )
+        # finally:
+        #     self._pending.pop(req_id)
+        # return v, "Message sent"
         return 0, "Message sent"
 
     async def permit_ncp(self, time_s=60):
@@ -171,10 +195,24 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
 
 class ZiGateDevice(zigpy.device.Device):
+    def __init__(self, application, ieee, nwk):
+        """Initialize instance."""
+
+        super().__init__(application, ieee, nwk)
+        port = application._config[CONF_DEVICE][CONF_DEVICE_PATH]
+        model = 'ZiGate USB-TTL'
+        if c.is_zigate_wifi(port):
+            model = 'ZiGate WiFi'
+        elif c.is_pizigate(port):
+            model = 'PiZiGate'
+        elif c.is_zigate_din(port):
+            model = 'ZiGate USB-DIN'
+        self._model = '{} {}'.format(model, application.version)
+
     @property
     def manufacturer(self):
         return "ZiGate"
 
     @property
     def model(self):
-        return 'ZiGate'
+        return self._model
