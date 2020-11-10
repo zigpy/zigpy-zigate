@@ -84,8 +84,10 @@ class ZiGate:
         self._uart = None
         self._awaiting = {}
         self._status_awaiting = {}
+        self._lock = asyncio.Lock()
 
         self.network_state = None
+
 
     @classmethod
     async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
@@ -126,6 +128,8 @@ class ZiGate:
         tries = 2
         while tries > 0:
             tries -= 1
+            
+            await self._lock.acquire()
             try:
                 return await asyncio.wait_for(
                     self._command(cmd, data, wait_response, wait_status),
@@ -137,11 +141,13 @@ class ZiGate:
                     LOGGER.warning("Retry command 0x%04x", cmd)
                 else:
                     raise NoResponseError
+            finally:
+                self._lock.release()
 
     def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
-        fut = asyncio.Future()
         if wait_status:
+            fut = asyncio.Future()
             self._status_awaiting[cmd] = fut
         if wait_response:
             fut = asyncio.Future()
