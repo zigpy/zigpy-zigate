@@ -199,7 +199,7 @@ class ZiGateDevice(zigpy.device.Device):
         """Initialize instance."""
 
         super().__init__(application, ieee, nwk)
-        port = application._config['CONF_DEVICE_PATH']
+        port = application._config[CONF_DEVICE_PATH]
         model = 'ZiGate USB-TTL'
         if c.is_zigate_wifi(port):
             model = 'ZiGate WiFi'
