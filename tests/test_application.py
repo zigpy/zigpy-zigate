@@ -33,6 +33,7 @@ def test_zigpy_ieee(app):
     dst_addr = app.get_dst_address(cluster)
     assert dst_addr.serialize() == b"\x03" + data[::-1] + b"\x01"
 
+
 def test_model_detection(app):
     device = zigpy_zigate.zigbee.application.ZiGateDevice(app, 0, 0)
     assert device.model == 'ZiGate USB-TTL {}'.format(FAKE_FIRMWARE_VERSION)
