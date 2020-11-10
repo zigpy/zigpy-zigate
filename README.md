@@ -36,7 +36,7 @@ Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.
 - To configure __pizigate__ port, specify the port, example : `/dev/serial0` or `/dev/ttyAMA0`
 - To configure __wifi__ ZiGate, manually specify IP address and port, example : `socket://192.168.1.10:9999` 
 
-__pizigate__ does require ZiGate 3.1d firmware or later as well as some additional adjustements on Raspberry Pi 3/Zero, and 4:
+__pizigate__ does require some additional adjustements on Raspberry Pi 3/Zero, and 4:
 - [Raspberry Pi 3 and Raspberry Pi Zero configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-3-et-zero-w/)
 - [Raspberry Pi 4 configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-4-b/)
 
