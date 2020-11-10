@@ -11,7 +11,7 @@ import zigpy.util
 from zigpy_zigate import types as t
 from zigpy_zigate import common as c
 from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
-from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE
+from zigpy_zigate.config import CONF_DEVICE, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -199,7 +199,7 @@ class ZiGateDevice(zigpy.device.Device):
         """Initialize instance."""
 
         super().__init__(application, ieee, nwk)
-        port = application._config[CONF_DEVICE_PATH]
+        port = application._config[CONF_DEVICE]
         model = 'ZiGate USB-TTL'
         if c.is_zigate_wifi(port):
             model = 'ZiGate WiFi'
