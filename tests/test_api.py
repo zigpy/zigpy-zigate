@@ -91,3 +91,14 @@ async def test_probe_fail(mock_connect, mock_raw_mode, exception):
     assert mock_connect.call_args[0][0] == DEVICE_CONFIG
     assert mock_raw_mode.call_count == 1
     assert mock_connect.return_value.close.call_count == 1
+
+
+@pytest.mark.asyncio
+@patch.object(zigate_api.ZiGate, "_command", side_effect=asyncio.TimeoutError)
+async def test_api_command(mock_command, api):
+    """Test command method."""
+    try:
+        await api.set_raw_mode()
+    except zigate_api.NoResponseError:
+        pass
+    assert mock_command.call_count == 2

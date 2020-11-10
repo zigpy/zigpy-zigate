@@ -123,14 +123,20 @@ class ZiGate:
         self.handle_callback(cmd, data, lqi)
 
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True):
-        try:
-            return await asyncio.wait_for(
-                self._command(cmd, data, wait_response, wait_status),
-                timeout=COMMAND_TIMEOUT
-            )
-        except asyncio.TimeoutError:
-            LOGGER.warning("No response to command 0x{:04x}".format(cmd))
-            raise NoResponseError
+        tries = 2
+        while tries > 0:
+            tries -= 1
+            try:
+                return await asyncio.wait_for(
+                    self._command(cmd, data, wait_response, wait_status),
+                    timeout=COMMAND_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                LOGGER.warning("No response to command 0x{:04x}".format(cmd))
+                if tries > 0:
+                    LOGGER.warning("Retry command 0x{:04x}".format(cmd))
+                else:
+                    raise NoResponseError
 
     def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
         self._uart.send(cmd, data)
