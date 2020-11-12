@@ -71,7 +71,7 @@ setup(
     author="Sébastien RAMAGE",
     author_email="sebatien.ramage@gmail.com",
     license="GPL-3.0",
-    packages=find_packages(exclude=['*.tests']),
+    packages=find_packages(exclude=['tests']),
     install_requires=requires,
     tests_require=[
         'pytest',
