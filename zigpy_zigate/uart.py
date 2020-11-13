@@ -2,7 +2,6 @@ import asyncio
 import binascii
 import logging
 import struct
-import os.path
 from typing import Any, Dict
 
 import serial  # noqa

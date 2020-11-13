@@ -15,6 +15,7 @@ APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
 )
 FAKE_FIRMWARE_VERSION = '3.1z'
 
+
 @pytest.fixture
 def app():
     a = zigpy_zigate.zigbee.application.ControllerApplication(APP_CONFIG)
