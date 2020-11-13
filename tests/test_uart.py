@@ -1,5 +1,5 @@
 from unittest import mock
-from .async_mock import AsyncMock, MagicMock, patch, sentinel
+from .async_mock import MagicMock
 
 import pytest
 import serial_asyncio
@@ -115,6 +115,7 @@ def test_checksum(gw):
     checksum = 0xaa
     r = gw._checksum(b'\x80\x10', 5, 0xff, data)
     assert r == checksum
+
 
 @pytest.mark.parametrize(
     "port",
