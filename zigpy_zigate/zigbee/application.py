@@ -60,7 +60,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def shutdown(self):
         """Shutdown application."""
-        self._api.close()
+        if self._api:
+            self._api.close()
 
     async def form_network(self, channel=None, pan_id=None, extended_pan_id=None):
         await self._api.set_channel(channel)
