@@ -1,4 +1,5 @@
 import re
+import os.path
 import serial.tools.list_ports
 import serial
 import usb
@@ -28,11 +29,15 @@ def discover_port():
 def is_pizigate(port):
     """ detect pizigate """
     # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
+    if port.startswith('pizigate:'):
+        return True
+    port = os.path.realpath(port)
     return re.match(r"/dev/(tty(S|AMA)|serial)\d+", port) is not None
 
 
 def is_zigate_din(port):
     """ detect zigate din """
+    port = os.path.realpath(port)
     if re.match(r"/dev/ttyUSB\d+", port):
         try:
             device = next(serial.tools.list_ports.grep(port))

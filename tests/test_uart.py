@@ -1,10 +1,13 @@
 from unittest import mock
+from .async_mock import MagicMock
 
 import pytest
 import serial_asyncio
+import serial.tools.list_ports
 
 import zigpy_zigate.config
 from zigpy_zigate import uart
+from zigpy_zigate import common
 
 DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
     {zigpy_zigate.config.CONF_DEVICE_PATH: "/dev/null"}
@@ -112,3 +115,57 @@ def test_checksum(gw):
     checksum = 0xaa
     r = gw._checksum(b'\x80\x10', 5, 0xff, data)
     assert r == checksum
+
+
+@pytest.mark.parametrize(
+    "port",
+    ('/dev/ttyAMA0', '/dev/serial0', 'pizigate:/dev/ttyAMA0'),
+)
+def test_is_pizigate(port):
+    r = common.is_pizigate(port)
+    assert r is True
+
+
+def test_is_not_pizigate():
+    port = '/dev/ttyUSB1'
+    r = common.is_pizigate(port)
+    assert r is False
+
+
+def test_is_zigatedin(monkeypatch):
+    def mock_grep(*args, **kwargs):
+        device = MagicMock()
+        device.description = 'ZiGate'
+        device.manufacturer = 'FTDI'
+        return iter([device])
+    monkeypatch.setattr(serial.tools.list_ports, 'grep', mock_grep)
+    port = '/dev/ttyUSB1'
+    r = common.is_zigate_din(port)
+    assert r is True
+
+
+@pytest.mark.parametrize(
+    "port",
+    ('/dev/ttyUSB1', '/dev/ttyAMA0', '/dev/serial0'),
+)
+def test_is_not_zigatedin(port, monkeypatch):
+    def mock_grep(*args, **kwargs):
+        device = MagicMock()
+        device.description = 'Other'
+        device.manufacturer = 'FTDI'
+        return iter([device])
+    monkeypatch.setattr(serial.tools.list_ports, 'grep', mock_grep)
+    r = common.is_zigate_din(port)
+    assert r is False
+
+
+def test_is_zigate_wifi():
+    port = 'socket://192.168.1.10:9999'
+    r = common.is_zigate_wifi(port)
+    assert r is True
+
+
+def test_is_not_zigate_wifi():
+    port = '/dev/ttyUSB1'
+    r = common.is_zigate_wifi(port)
+    assert r is False
