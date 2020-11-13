@@ -140,7 +140,6 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
             lambda: protocol,
             host, port)
     else:
-        port = os.path.realpath(port)
         if c.is_pizigate(port):
             LOGGER.debug('PiZiGate detected')
             await c.set_pizigate_running_mode()
