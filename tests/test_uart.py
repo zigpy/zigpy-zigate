@@ -1,5 +1,5 @@
 from unittest import mock
-from .async_mock import MagicMock
+from .async_mock import MagicMock, AsyncMock
 
 import pytest
 import serial_asyncio
@@ -8,10 +8,6 @@ import serial.tools.list_ports
 import zigpy_zigate.config
 from zigpy_zigate import uart
 from zigpy_zigate import common
-
-DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
-    {zigpy_zigate.config.CONF_DEVICE_PATH: "/dev/null"}
-)
 
 
 @pytest.fixture
@@ -22,14 +18,23 @@ def gw():
 
 
 @pytest.mark.asyncio
-async def test_connect(monkeypatch):
+@pytest.mark.parametrize(
+    "port",
+    ('/dev/null', 'pizigate:/dev/ttyAMA0'),
+)
+async def test_connect(port, monkeypatch):
     api = mock.MagicMock()
 
-    async def mock_conn(loop, protocol_factory, **kwargs):
+    async def mock_conn(loop, protocol_factory, url, **kwargs):
         protocol = protocol_factory()
         loop.call_soon(protocol.connection_made, None)
+        assert url.startswith('/') is True
         return None, protocol
     monkeypatch.setattr(serial_asyncio, 'create_serial_connection', mock_conn)
+    monkeypatch.setattr(common, 'set_pizigate_running_mode', AsyncMock())
+    DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
+        {zigpy_zigate.config.CONF_DEVICE_PATH: port}
+    )
 
     await uart.connect(DEVICE_CONFIG, api)
 
