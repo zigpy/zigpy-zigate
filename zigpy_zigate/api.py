@@ -17,6 +17,7 @@ from . import types as t
 LOGGER = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 1.5
+PROBE_TIMEOUT = 3.0
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
@@ -254,7 +255,7 @@ class ZiGate:
         """Probe port for the device presence."""
         api = cls(zigpy_zigate.config.SCHEMA_DEVICE(device_config))
         try:
-            await asyncio.wait_for(api._probe(), timeout=COMMAND_TIMEOUT)
+            await asyncio.wait_for(api._probe(), timeout=PROBE_TIMEOUT)
             return True
         except (
             asyncio.TimeoutError,
