@@ -1,5 +1,5 @@
 import asyncio
-
+import sys
 import pytest
 import serial
 import serial_asyncio
@@ -10,6 +10,7 @@ import zigpy_zigate.uart
 from zigpy_zigate import api as zigate_api
 
 DEVICE_CONFIG = config.SCHEMA_DEVICE({config.CONF_DEVICE_PATH: "/dev/null"})
+
 
 
 @pytest.fixture
@@ -58,17 +59,26 @@ async def test_api_new(conn_mck):
 
 @pytest.mark.asyncio
 @patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=AsyncMock)
-@patch.object(zigpy_zigate.uart, "connect")
-async def test_probe_success(mock_connect, mock_raw_mode):
+@pytest.mark.parametrize(
+    "port",
+    ('/dev/null', 'pizigate:/dev/ttyAMA0'),
+)
+async def test_probe_success(mock_raw_mode, port, monkeypatch):
     """Test device probing."""
 
+    async def mock_conn(loop, protocol_factory, **kwargs):
+        protocol = protocol_factory()
+        loop.call_soon(protocol.connection_made, None)
+        return None, protocol
+    monkeypatch.setattr(serial_asyncio, "create_serial_connection", mock_conn)
+    DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
+        {zigpy_zigate.config.CONF_DEVICE_PATH: port}
+    )
+    sys.modules['RPi'] = MagicMock()
+    sys.modules['RPi.GPIO'] = MagicMock()
     res = await zigate_api.ZiGate.probe(DEVICE_CONFIG)
     assert res is True
-    assert mock_connect.call_count == 1
-    assert mock_connect.await_count == 1
-    assert mock_connect.call_args[0][0] == DEVICE_CONFIG
     assert mock_raw_mode.call_count == 1
-    assert mock_connect.return_value.close.call_count == 1
 
 
 @pytest.mark.asyncio

@@ -32,7 +32,8 @@ class Gateway(asyncio.Protocol):
             self._connected_future.set_result(True)
 
     def close(self):
-        self._transport.close()
+        if self._transport:
+            self._transport.close()
 
     def send(self, cmd, data=b''):
         """Send data, taking care of escaping and framing"""
@@ -145,7 +146,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
             # in case of pizigate:/dev/ttyAMA0 syntax
             if port.startswith('pizigate:'):
                 port = port[9:]
-        elif c.is_zigate_din:
+        elif c.is_zigate_din(port):
             LOGGER.debug('ZiGate USB DIN detected')
             await c.set_zigatedin_running_mode()
 
