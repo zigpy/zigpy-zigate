@@ -15,7 +15,13 @@ def get_releases():
     r = urllib.request.urlopen(URL)
     if r.status == 200:
         for release in json.loads(r.read()):
+            if release.get('draft'):
+                continue
+            if release.get('prerelease'):
+                continue
             for asset in release['assets']:
+                if 'pdm' in asset['name'].lower():
+                    continue
                 if asset['name'].endswith('.bin'):
                     LOGGER.info('Found %s', asset['name'])
                     releases[asset['name']] = asset['browser_download_url']
