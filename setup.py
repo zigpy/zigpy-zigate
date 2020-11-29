@@ -50,7 +50,7 @@ def is_raspberry_pi(raise_on_errors=False):
 
 requires = [
     'pyserial-asyncio',
-    'pyusb',
+    'pyusb>=1.1.0',
     'zigpy>=0.22.2',
 ]
 
