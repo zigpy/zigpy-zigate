@@ -46,6 +46,22 @@ def test_deserialize():
                                   address=t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0])
     assert result[4] == 0xff
 
+    data = b'\x00\x01\x01\x12\x34\x56\x78\x9a\xbc\xde\xf0\xff'
+    schema = RESPONSES[0x8024]
+    result, rest = t.deserialize(data, schema)
+    assert result[0] == 0x00
+    assert result[1] == 0x0101
+    assert result[2] == t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0]
+    assert result[3] == 0xff
+
+    data = b'\x06'
+    schema = RESPONSES[0x8024]
+    result, rest = t.deserialize(data, schema)
+    assert result[0] == 0x06
+    assert result[1] is None
+    assert result[2] is None
+    assert result[3] is None
+    assert len(result) == 4
 
 def test_serialize():
     data = [True]

@@ -5,7 +5,11 @@ import zigpy.types
 def deserialize(data, schema):
     result = []
     for type_ in schema:
-        value, data = type_.deserialize(data)
+        # value, data = type_.deserialize(data)
+        if data:
+            value, data = type_.deserialize(data)
+        else:
+            value = None
         result.append(value)
     return result, data
 
