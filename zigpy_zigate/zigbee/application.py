@@ -89,6 +89,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                     break
             if tries <= 0:
                 LOGGER.error('Failed to start network error %s', network_formed[0])
+                LOGGER.debug('Resetting ZiGate')
                 await self._api.reset()
 
     async def force_remove(self, dev):

@@ -1,4 +1,5 @@
 from unittest import mock
+from .async_mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import zigpy.types as zigpy_types
@@ -20,6 +21,7 @@ FAKE_FIRMWARE_VERSION = '3.1z'
 def app():
     a = zigpy_zigate.zigbee.application.ControllerApplication(APP_CONFIG)
     a.version = FAKE_FIRMWARE_VERSION
+    a._api = MagicMock()
     return a
 
 
@@ -38,3 +40,32 @@ def test_zigpy_ieee(app):
 def test_model_detection(app):
     device = zigpy_zigate.zigbee.application.ZiGateDevice(app, 0, 0)
     assert device.model == 'ZiGate USB-TTL {}'.format(FAKE_FIRMWARE_VERSION)
+
+
+@pytest.mark.asyncio
+async def test_form_network_success(app):
+    app._api.set_channel = AsyncMock()
+    app._api.reset = AsyncMock()
+    async def mock_start_network():
+        return [[0x00, 0x1234, 0x0123456789abcdef], 0]
+    app._api.start_network = mock_start_network
+    await app.form_network()
+    assert app._nwk == 0x1234
+    assert app._ieee == 0x0123456789abcdef
+    assert app._api.reset.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_form_network_failed(app):
+    app._api.set_channel = AsyncMock()
+    app._api.reset = AsyncMock()
+    async def mock_start_network():
+        return [[0x06], 0]
+    app._api.start_network = mock_start_network
+    async def mock_get_network_state():
+        return [[0xffff, 0x0123456789abcdef, 0x1234, 0, 0x11], 0]
+    app._api.get_network_state = mock_get_network_state
+    await app.form_network()
+    assert app._nwk == 0
+    assert app._ieee == 0
+    assert app._api.reset.call_count == 1
