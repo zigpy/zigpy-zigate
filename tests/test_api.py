@@ -40,7 +40,6 @@ async def test_connect(monkeypatch):
 
 
 def test_close(api):
-    api._uart.close = MagicMock()
     uart = api._uart
     api.close()
     assert uart.close.call_count == 1
@@ -104,11 +103,11 @@ async def test_probe_fail(mock_connect, mock_raw_mode, exception):
 
 
 @pytest.mark.asyncio
-@patch.object(zigate_api.ZiGate, "_command", side_effect=asyncio.TimeoutError)
+@patch.object(asyncio, "wait_for", side_effect=asyncio.TimeoutError)
 async def test_api_command(mock_command, api):
     """Test command method."""
     try:
         await api.set_raw_mode()
     except zigate_api.NoResponseError:
         pass
-    assert mock_command.call_count == 2
+    assert mock_command.call_count == 3

@@ -24,6 +24,9 @@ RESPONSES = {
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.Address, t.Address, t.Bytes),
+    0x0302: (t.uint8_t,),
+    0x8006: (t.uint8_t,),
+    0x8007: (t.uint8_t,),
     0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     0x8010: (t.uint16_t, t.uint16_t),
     0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
@@ -45,6 +48,7 @@ COMMANDS = {
     0x0021: (t.uint32_t,),
     0x0026: (t.EUI64, t.EUI64),
     0x0049: (t.NWK, t.uint8_t, t.uint8_t),
+    0x004a: (t.NWK, t.uint32_t, t.uint8_t, t.uint8_t, t.uint8_t, t.uint16_t),
     0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
     0x0806: (t.uint8_t,),
 }
@@ -124,35 +128,55 @@ class ZiGate:
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
 
-    async def command(self, cmd, data=b'', wait_response=None, wait_status=True):
-        tries = 2
+    async def command(self, cmd, data=b'', wait_response=None, wait_status=True, timeout=COMMAND_TIMEOUT):
+        await self._lock.acquire()
+        tries = 3
+        result = None
+        status_fut = None
+        response_fut = None
         while tries > 0:
+            if wait_status:
+                status_fut = asyncio.Future()
+                self._status_awaiting[cmd] = status_fut
+            if wait_response:
+                response_fut = asyncio.Future()
+                self._awaiting[wait_response] = response_fut
             tries -= 1
-            await self._lock.acquire()
-            try:
-                return await asyncio.wait_for(
-                    self._command(cmd, data, wait_response, wait_status),
-                    timeout=COMMAND_TIMEOUT
-                )
-            except asyncio.TimeoutError:
-                LOGGER.warning("No response to command 0x%04x", cmd)
-                if tries > 0:
-                    LOGGER.warning("Retry command 0x%04x", cmd)
-                else:
-                    raise NoResponseError
-            finally:
-                self._lock.release()
-
-    def _command(self, cmd, data=b'', wait_response=None, wait_status=True):
-        self._uart.send(cmd, data)
-        if wait_status:
-            fut = asyncio.Future()
-            self._status_awaiting[cmd] = fut
-        if wait_response:
-            fut = asyncio.Future()
-            self._awaiting[wait_response] = fut
-        if wait_status or wait_response:
-            return fut
+            self._uart.send(cmd, data)
+            if wait_status:
+                LOGGER.debug('Wait for status to command 0x%04x', cmd)
+                try:
+                    result = await asyncio.wait_for(status_fut, timeout=timeout)
+                    LOGGER.debug('Got status for 0x%04x : %s', cmd, result)
+                except asyncio.TimeoutError:
+                    if cmd in self._status_awaiting:
+                        del self._status_awaiting[cmd]
+                    if response_fut and wait_response in self._awaiting:
+                        del self._awaiting[wait_response]
+                    LOGGER.warning("No response to command 0x%04x", cmd)
+                    LOGGER.debug('Tries count %s', tries)
+                    if tries > 0:
+                        LOGGER.warning("Retry command 0x%04x", cmd)
+                        continue
+                    else:
+                        raise NoResponseError
+            if wait_response:
+                LOGGER.debug('Wait for response 0x%04x', wait_response)
+                try:
+                    result = await asyncio.wait_for(response_fut, timeout=timeout)
+                    LOGGER.debug('Got response 0x%04x : %s', wait_response, result)
+                except asyncio.TimeoutError:
+                    if wait_response in self._awaiting:
+                        del self._awaiting[wait_response]
+                    LOGGER.warning("No response waiting for 0x%04x", wait_response)
+                    LOGGER.debug('Tries count %s', tries)
+                    if tries > 0:
+                        LOGGER.warning("Retry command 0x%04x", cmd)
+                        continue
+                    else:
+                        raise NoResponseError
+        self._lock.release()
+        return result
 
     async def version(self):
         return await self.command(0x0010, wait_response=0x8010)
@@ -171,10 +195,10 @@ class ZiGate:
         await self.command(0x0002, data)
 
     async def reset(self):
-        self._command(0x0011, wait_status=False)
+        await self.command(0x0011, wait_response=0x8006)
 
     async def erase_persistent_data(self):
-        self._command(0x0012, wait_status=False)
+        await self.command(0x0012, wait_status=False)
 
     async def set_time(self, dt=None):
         """ set internal time
@@ -183,10 +207,10 @@ class ZiGate:
         dt = dt or datetime.datetime.now()
         timestamp = int((dt - datetime.datetime(2000, 1, 1)).total_seconds())
         data = t.serialize([timestamp], COMMANDS[0x0016])
-        self._command(0x0016, data)
+        await self.command(0x0016, data)
 
     async def get_time_server(self):
-        timestamp, lqi = await self._command(0x0017, wait_response=0x8017)
+        timestamp, lqi = await self.command(0x0017, wait_response=0x8017)
         dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
         return dt
 
@@ -198,6 +222,10 @@ class ZiGate:
         cert = {'CE': 1, 'FCC': 2}[typ]
         data = t.serialize([cert], COMMANDS[0x0019])
         await self.command(0x0019, data)
+
+    async def management_network_request(self):
+        data = t.serialize([0x0000, 0x07fff800, 0xff, 5, 0xff, 0x0000], COMMANDS[0x004a])
+        return await self.command(0x004a)#, wait_response=0x804a, timeout=10)
 
     async def set_tx_power(self, power=63):
         if power > 63:

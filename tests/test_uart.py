@@ -1,4 +1,3 @@
-from unittest import mock
 from .async_mock import MagicMock, AsyncMock
 
 import pytest
@@ -12,8 +11,8 @@ from zigpy_zigate import common
 
 @pytest.fixture
 def gw():
-    gw = uart.Gateway(mock.MagicMock())
-    gw._transport = mock.MagicMock()
+    gw = uart.Gateway(MagicMock())
+    gw._transport = MagicMock()
     return gw
 
 
@@ -23,7 +22,7 @@ def gw():
     ('/dev/null', 'pizigate:/dev/ttyAMA0'),
 )
 async def test_connect(port, monkeypatch):
-    api = mock.MagicMock()
+    api = MagicMock()
 
     async def mock_conn(loop, protocol_factory, url, **kwargs):
         protocol = protocol_factory()
