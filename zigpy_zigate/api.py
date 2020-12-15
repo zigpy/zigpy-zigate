@@ -82,6 +82,10 @@ class NoResponseError(zigpy.exceptions.APIException):
     pass
 
 
+class CommandError(zigpy.exceptions.APIException):
+    pass
+
+
 class ZiGate:
     def __init__(self, device_config: Dict[str, Any]):
         self._app = None
@@ -90,6 +94,7 @@ class ZiGate:
         self._awaiting = {}
         self._status_awaiting = {}
         self._lock = asyncio.Lock()
+        self._conn_lost_task = None
 
         self.network_state = None
 
@@ -103,11 +108,58 @@ class ZiGate:
     async def connect(self):
         assert self._uart is None
         self._uart = await zigpy_zigate.uart.connect(self._config, self)
+    
+    def connection_lost(self, exc: Exception) -> None:
+        """Lost serial connection."""
+        LOGGER.warning(
+            "Serial '%s' connection lost unexpectedly: %s",
+            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
+            exc,
+        )
+        self._uart = None
+        if self._conn_lost_task and not self._conn_lost_task.done():
+            self._conn_lost_task.cancel()
+        self._conn_lost_task = asyncio.ensure_future(self._connection_lost())
+
+    async def _connection_lost(self) -> None:
+        """Reconnect serial port."""
+        try:
+            await self._reconnect_till_done()
+        except asyncio.CancelledError:
+            LOGGER.debug("Cancelling reconnection attempt")
+
+    async def _reconnect_till_done(self) -> None:
+        attempt = 1
+        while True:
+            try:
+                await asyncio.wait_for(self.reconnect(), timeout=10)
+                break
+            except (asyncio.TimeoutError, OSError) as exc:
+                wait = 2 ** min(attempt, 5)
+                attempt += 1
+                LOGGER.debug(
+                    "Couldn't re-open '%s' serial port, retrying in %ss: %s",
+                    self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
+                    wait,
+                    str(exc),
+                )
+                await asyncio.sleep(wait)
+
+        LOGGER.debug(
+            "Reconnected '%s' serial port after %s attempts",
+            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
+            attempt,
+        )
 
     def close(self):
         if self._uart:
             self._uart.close()
             self._uart = None
+        
+    def reconnect(self):
+        """Reconnect using saved parameters."""
+        LOGGER.debug("Reconnecting '%s' serial port", self._config[zigpy_zigate.config.CONF_DEVICE_PATH])
+        return self.connect()
 
     def set_application(self, app):
         self._app = app
@@ -129,12 +181,17 @@ class ZiGate:
         self.handle_callback(cmd, data, lqi)
 
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True, timeout=COMMAND_TIMEOUT):
+        
         await self._lock.acquire()
         tries = 3
         result = None
         status_fut = None
         response_fut = None
         while tries > 0:
+            if self._uart is None:
+            # connection was lost
+                self._lock.release()
+                raise CommandError("API is not running")
             if wait_status:
                 status_fut = asyncio.Future()
                 self._status_awaiting[cmd] = status_fut
@@ -159,6 +216,7 @@ class ZiGate:
                         LOGGER.warning("Retry command 0x%04x", cmd)
                         continue
                     else:
+                        self._lock.release()
                         raise NoResponseError
             if wait_response:
                 LOGGER.debug('Wait for response 0x%04x', wait_response)
@@ -174,6 +232,7 @@ class ZiGate:
                         LOGGER.warning("Retry command 0x%04x", cmd)
                         continue
                     else:
+                        self._lock.release()
                         raise NoResponseError
         self._lock.release()
         return result

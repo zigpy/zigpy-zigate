@@ -5,7 +5,8 @@
 import argparse
 import asyncio
 import logging
-from zigpy_zigate.api import ZiGate
+from os import wait
+from zigpy_zigate.api import LOGGER, ZiGate, NoResponseError, CommandError
 import zigpy_zigate.config
 
 
@@ -14,7 +15,8 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", help="Command to start",
                         choices=["version", "reset", "erase_persistent",
-                                 "set_time", "get_time", "set_led", "set_certification", "set_tx_power"])
+                                 "set_time", "get_time", "set_led", "set_certification", "set_tx_power", "management_network_request",
+                                 "loop"])
     parser.add_argument("-p", "--port", help="Port", default='auto')
     parser.add_argument("-d", "--debug", help="Debug log", action='store_true')
     parser.add_argument("-v", "--value", help="Set command's value")
@@ -50,6 +52,27 @@ async def main():
         power = int(args.value or 63)
         print('Set ZiGate TX Power to', power)
         print('Tx power set to', await api.set_tx_power(power))
+    elif args.command == 'management_network_request':
+        await api.reset()
+        # await api.set_raw_mode(False)
+        await api.management_network_request()
+        print('ok')
+        await asyncio.sleep(10)
+    elif args.command == 'loop':  # for testing purpose
+        enable = True
+
+        while True:
+            try:
+                LOGGER.info('Set led %s', enable)
+                await api.set_led(enable)
+                enable = not enable
+                await asyncio.sleep(1)
+            except KeyboardInterrupt:
+                break
+            except (NoResponseError, CommandError):
+                LOGGER.exception('NoResponseError')
+                await asyncio.sleep(1)
+                continue
     api.close()
 
 if __name__ == '__main__':
