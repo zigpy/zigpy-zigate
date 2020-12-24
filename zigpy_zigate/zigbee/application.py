@@ -160,11 +160,20 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     @zigpy.util.retryable_request
     async def request(self, device, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False):
+        return await self._request(device.nwk, profile, cluster, src_ep, dst_ep, sequence, data,
+        expect_reply, use_ieee)
+
+    async def mrequest(self, group_id, profile, cluster, src_ep, sequence, data, *, hops, non_member_radius):
+        src_ep = 1
+        return await self._request(group_id, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=1)
+    
+    async def _request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data,
+                      expect_reply=True, use_ieee=False, addr_mode=2):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
         LOGGER.debug('request %s',
-                     (device.nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
+                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
         try:
-            v, lqi = await self._api.raw_aps_data_request(device.nwk, src_ep, dst_ep, profile, cluster, data)
+            v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data, addr_mode)
         except NoResponseError:
             return 1, "ZiGate doesn't answer to command"
         req_id = v[1]
