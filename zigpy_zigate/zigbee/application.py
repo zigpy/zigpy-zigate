@@ -144,7 +144,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             except ValueError:
                 event = 'Unknown event'
             LOGGER.debug('PDM Event %s %s, record %s', response[0], event, response[1])
-        elif msg == 0x8702:  # APS Data confirm Fail 
+        elif msg == 0x8702:  # APS Data confirm Fail
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
 
