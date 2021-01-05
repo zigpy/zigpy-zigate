@@ -163,7 +163,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         return await self._request(device.nwk, profile, cluster, src_ep, dst_ep, sequence, data,
         expect_reply, use_ieee)
 
-    async def mrequest(self, group_id, profile, cluster, src_ep, sequence, data, *, hops, non_member_radius):
+    async def mrequest(self, group_id, profile, cluster, src_ep, sequence, data, *, hops=0, non_member_radius=3):
         src_ep = 1
         return await self._request(group_id, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=1)
     
