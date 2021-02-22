@@ -118,6 +118,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             #     LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
             #     self._pending_join.append(nwk)
         elif msg == 0x8002:
+            if response[1] == 0x0 and response[2] == 0x13:
+                nwk = response[5].address
+                ieee = zigpy.types.EUI64(response[7][3:11])
+                parent_nwk = 0
+                self.handle_join(nwk, ieee, parent_nwk)
+                return
             try:
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
                     device = self.get_device(nwk=response[5].address)
