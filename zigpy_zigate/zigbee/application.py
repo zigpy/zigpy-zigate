@@ -2,6 +2,8 @@ import asyncio
 import logging
 from typing import Any, Dict, Optional
 
+import time
+
 import zigpy.application
 import zigpy.config
 import zigpy.device
@@ -106,17 +108,18 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             nwk = response[0]
             ieee = zigpy.types.EUI64(response[1])
             parent_nwk = 0
-            self.handle_join(nwk, ieee, parent_nwk)
+            #time.sleep(2.0)
+            #self.handle_join(nwk, ieee, parent_nwk)
             # Temporary disable two stages pairing due to firmware bug
-            # rejoin = response[3]
-            # if nwk in self._pending_join or rejoin:
-            #     LOGGER.debug('Finish pairing {} (2nd device announce)'.format(nwk))
-            #     if nwk in self._pending_join:
-            #         self._pending_join.remove(nwk)
-            #     self.handle_join(nwk, ieee, parent_nwk)
-            # else:
-            #     LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
-            #     self._pending_join.append(nwk)
+            rejoin = response[3]
+            if nwk in self._pending_join or rejoin:
+                LOGGER.debug('Finish pairing {} (2nd device announce)'.format(nwk))
+                if nwk in self._pending_join:
+                    self._pending_join.remove(nwk)
+                self.handle_join(nwk, ieee, parent_nwk)
+            else:
+                LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
+                self._pending_join.append(nwk)
         elif msg == 0x8002:
             if response[1] == 0x0 and response[2] == 0x13:
                 nwk = response[5].address
