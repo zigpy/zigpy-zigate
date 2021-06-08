@@ -319,7 +319,7 @@ class ZiGate:
         return await self.command(0x0026, data)
 
     async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
-                                   cluster, payload, addr_mode=2, security=0):
+                                   cluster, payload, addr_mode=2, security=0x02:
         '''
         Send raw APS Data request
         '''
