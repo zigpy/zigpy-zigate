@@ -18,13 +18,15 @@ There's also a Wi-Fi adapter to communicate with ZiGate over network.
 
 Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.1a firmware or later to work with this zigpy-zigate module, however ZiGate 3.1d firmware or later is recommended as it contains a specific bug-fix related to zigpy. See all available official ZiGate firmware releases [here (link)](https://github.com/fairecasoimeme/ZiGate/releases).
 
-### Known working Zigbee radio modules
-- [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/)
-- [ZiGate USB-DIN](https://zigate.fr/produit/zigate-usb-din/)
-- [PiZiGate (ZiGate module for Raspberry Pi GPIO)](https://zigate.fr/produit/pizigate-v1-0/)
-- [ZiGate Pack WiFi](https://zigate.fr/produit/zigate-pack-wifi-v1-3/)
+### Known working ZiGate compatible Zigbee radio modules
+- [ZiGate + USB / ZiGate USB-TTL](https://zigate.fr/produit/zigate-USB/)
+- [ZiGate + USB-DIN / ZiGate USB-DIN](https://zigate.fr/produit/zigatev2-usb-din/)
+- [PiZiGate + / PiZiGate (ZiGate HAT/Shield module for Raspberry Pi compatible GPIO header)](https://zigate.fr/produit/pizigatev2/)
+  - Tip! PiZiGate are not limited to Raspberry Pi series as works with all computers with a Raspberry Pi compatible GPIO header.
+- [ZiGate + WiFi Pack / ZiGate WiFi Pack (ZiGate WiFi serial-to-IP server)](https://zigate.fr/produit/zigatev2-pack-wifi/)
+  - Tip! [ZiGate compatible WiFi module](https://zigate.fr/produit/module-wifi-v1-3-compatible-zigate/) can also be used to convert radio board from [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/) into this "ZiGate WiFi Pack".
 
-### Experimental Zigbee radio modules
+### Experimental ZiGate compatible Zigbee radio modules
 - [Open Lumi Gateway](https://github.com/openlumi) - [DIY ZiGate WiFi bridge hacked from an Xiaomi Lumi Gateway with modded OpenWRT firmware](https://github.com/zigpy/zigpy-zigate/issues/59)
 
 ## Port configuration
