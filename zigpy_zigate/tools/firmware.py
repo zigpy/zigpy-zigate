@@ -54,7 +54,7 @@ def download_latest(dest='/tmp'):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", help="Command to start", choices=["list", "download", "download_latest"])
+    parser.add_argument("command", help="Command to start", choices=["list", "download", "download-latest"])
     parser.add_argument('--url', help="Download URL")
     parser.add_argument('--dest', help="Download folder, default to /tmp", default='/tmp')
     args = parser.parse_args()
@@ -66,5 +66,5 @@ if __name__ == '__main__':
             LOGGER.error('You have to give a URL to download using --url')
         else:
             download(args.url, args.dest)
-    elif args.command == 'download_latest':
+    elif args.command == 'download-latest':
         download_latest(args.dest)
