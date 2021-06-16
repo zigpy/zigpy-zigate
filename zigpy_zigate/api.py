@@ -172,7 +172,7 @@ class ZiGate:
         LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
                      binascii.hexlify(data), lqi)
         if cmd not in RESPONSES:
-            LOGGER.error('Received unhandled response 0x%04x', cmd)
+            LOGGER.warning('Received unhandled response 0x%04x', cmd)
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:
