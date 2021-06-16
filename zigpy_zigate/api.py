@@ -82,6 +82,10 @@ class NoResponseError(zigpy.exceptions.APIException):
     pass
 
 
+class NoStatusError(NoResponseError):
+    pass
+
+
 class CommandError(zigpy.exceptions.APIException):
     pass
 
@@ -217,7 +221,7 @@ class ZiGate:
                         continue
                     else:
                         self._lock.release()
-                        raise NoResponseError
+                        raise NoStatusError
             if wait_response:
                 LOGGER.debug('Wait for response 0x%04x', wait_response)
                 try:
