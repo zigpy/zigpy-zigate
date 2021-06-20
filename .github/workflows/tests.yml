@@ -42,4 +42,4 @@ jobs:
     name: Test Markdown
     steps:
     - name: Run mdl
-      uses: actionshub/markdownlint@master
+      uses: actionshub/markdownlint@main
