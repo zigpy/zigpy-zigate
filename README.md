@@ -23,6 +23,8 @@ Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.
 - [ZiGate + USB-DIN / ZiGate USB-DIN](https://zigate.fr/produit/zigatev2-usb-din/)
 - [PiZiGate + / PiZiGate (ZiGate HAT/Shield module for Raspberry Pi compatible GPIO header)](https://zigate.fr/produit/pizigatev2/)
   - Tip! PiZiGate are not limited to Raspberry Pi series as works with all computers with a Raspberry Pi compatible GPIO header.
+- [ZiGate Ethernet (ZiGate Ethernet serial-to-IP server)](https://zigate.fr/produit/zigate-ethernet/) (Note! Requires the [PiZiGate + radio module](https://zigate.fr/produit/pizigatev2/))
+  - Tip! [ZiGate Ethernet](https://zigate.fr/produit/zigate-ethernet/) can as alternativly also be used via [ESPHome serial bridge firmware for ESP32](https://github.com/thegroove/esphome-zbbridge/) as an option.
 - [ZiGate + WiFi Pack / ZiGate WiFi Pack (ZiGate WiFi serial-to-IP server)](https://zigate.fr/produit/zigatev2-pack-wifi/)
   - Tip! [ZiGate compatible WiFi module](https://zigate.fr/produit/module-wifi-v1-3-compatible-zigate/) can also be used to convert radio board from [ZiGate USB-TTL](https://zigate.fr/produit/zigate-ttl/) into this "ZiGate WiFi Pack".
 
