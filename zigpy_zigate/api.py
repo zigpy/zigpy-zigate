@@ -39,6 +39,7 @@ RESPONSES = {
     0x8701: (t.uint8_t, t.uint8_t),
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
     0x8806: (t.uint8_t,),
+    0x9999: (t.uint8_t,),
 }
 
 COMMANDS = {
