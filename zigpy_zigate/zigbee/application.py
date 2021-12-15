@@ -57,6 +57,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         dev = ZiGateDevice(self, self._ieee, self._nwk)
         self.devices[dev.ieee] = dev
+        self._udpate_network_info(network_state)
 
     async def shutdown(self):
         """Shutdown application."""
@@ -85,6 +86,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 await asyncio.sleep(1)
                 tries -= 1
                 network_state, lqi = await self._api.get_network_state()
+                self._udpate_network_info(network_state)
                 if network_state and network_state[3] != 0 and network_state[0] != 0xffff:
                     break
             if tries <= 0:
@@ -183,8 +185,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                       expect_reply=True, use_ieee=False, addr_mode=2):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
 
-        if expect_reply and addr_mode < 4 : # brodcast can't be with ACK and everything above 4 is already with ack
-            addr_mode = addr_mode + 5
+        if expect_reply :
+            if (addr_mode == 0):
+                addr_mode = 6
+            elif(addr_mode == 2):
+                addr_mode = 7
+            elif (addr_mode == 3):
+                addr_mode = 8
 
         LOGGER.debug('request %s',
                      (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee,addr_mode))
@@ -215,6 +222,29 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
             await self._api.reset()
+
+
+    def _udpate_network_info (self,network_state):
+        self.state.network_information = zigpy.state.NetworkInformation(
+            extended_pan_id=network_state[3],
+            pan_id=network_state[2],
+            nwk_update_id=None,
+            nwk_manager_id=0x0000,
+            channel=network_state[4],
+            channel_mask=None,
+            security_level=5,
+            network_key=None,
+            tc_link_key=None,
+            children=[],
+            key_table=[],
+            nwk_addresses={},
+            stack_specific=None,
+        )
+        self.state.node_information= zigpy.state.NodeInfo (
+            nwk = network_state[0],
+            ieee = network_state[1],
+            logical_type = None
+        )
 
 
 class ZiGateDevice(zigpy.device.Device):
