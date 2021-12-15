@@ -166,18 +166,28 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     @zigpy.util.retryable_request
     async def request(self, device, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False):
-        return await self._request(device.nwk, profile, cluster, src_ep, dst_ep, sequence, data,
-        expect_reply, use_ieee)
+        if device.nwk is not None:
+            return await self._request(device.nwk, profile, cluster, src_ep, dst_ep, sequence, data,expect_reply, use_ieee, addr_mode=2)
+        elif device.ieee is not None:
+            return await self._request(device.ieee, profile, cluster, src_ep, dst_ep, sequence, data,expect_reply, use_ieee, addr_mode=3)
 
     async def mrequest(self, group_id, profile, cluster, src_ep, sequence, data, *, hops=0, non_member_radius=3):
         src_ep = 1
         return await self._request(group_id, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=1)
-    
+
+    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
+                        sequence, data, broadcast_address):
+       return await self._request(grpid, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=4)
+
     async def _request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False, addr_mode=2):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
+
+        if expect_reply and addr_mode < 4 : # brodcast can't be with ACK and everything above 4 is already with ack
+            addr_mode = addr_mode + 5
+
         LOGGER.debug('request %s',
-                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
+                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee,addr_mode))
         try:
             v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data, addr_mode)
         except NoResponseError:
@@ -205,10 +215,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
             await self._api.reset()
-
-    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
-                        sequence, data, broadcast_address):
-        LOGGER.debug("Broadcast not implemented.")
 
 
 class ZiGateDevice(zigpy.device.Device):
