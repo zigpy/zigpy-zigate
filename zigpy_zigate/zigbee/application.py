@@ -177,26 +177,27 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         src_ep = 1
         return await self._request(group_id, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=1)
 
-    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
-                        sequence, data, broadcast_address):
-       return await self._request(grpid, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=4)
+    async def broadcast(
+        self,
+        profile,
+        cluster,
+        src_ep,
+        dst_ep,
+        grpid,
+        radius,
+        sequence,
+        data,
+        broadcast_address=zigpy.types.BroadcastAddress.RX_ON_WHEN_IDLE,
+    ) :
+       return await self._request(broadcast_address, profile, cluster, src_ep, src_ep, sequence, data, expect_reply=False, addr_mode=4)
 
     async def _request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False, addr_mode=2):
         src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
-
-        if expect_reply :
-            if (addr_mode == 0):
-                addr_mode = 6
-            elif(addr_mode == 2):
-                addr_mode = 7
-            elif (addr_mode == 3):
-                addr_mode = 8
-
         LOGGER.debug('request %s',
-                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee,addr_mode))
+                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee,addr_mode,expect_reply))
         try:
-            v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data, addr_mode)
+            v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data, addr_mode,expect_reply=expect_reply)
         except NoResponseError:
             return 1, "ZiGate doesn't answer to command"
         req_id = v[1]

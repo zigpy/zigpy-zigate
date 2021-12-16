@@ -12,19 +12,20 @@ import zigpy.exceptions
 import zigpy_zigate.config
 import zigpy_zigate.uart
 
-from . import types as t
+from zigpy_zigate import types as t
 
 LOGGER = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 1.5
+COMMAND_TIMEOUT = 20
 PROBE_TIMEOUT = 3.0
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
-    0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
+    0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.Address, t.Address, t.Bytes),
     0x0302: (t.uint8_t,),
+    0x8001: (t.Bytes,),
     0x8006: (t.uint8_t,),
     0x8007: (t.uint8_t,),
     0x8009: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
@@ -35,7 +36,8 @@ RESPONSES = {
     0x8035: (t.uint8_t, t.uint32_t),
     0x8048: (t.EUI64, t.uint8_t),
     0x8701: (t.uint8_t, t.uint8_t),
-    0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t),
+    0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
+    0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # Data not confirmed
     0x8806: (t.uint8_t,),
 }
 
@@ -97,6 +99,8 @@ class ZiGate:
         self._uart = None
         self._awaiting = {}
         self._status_awaiting = {}
+        self._status_datasent_awaiting = {}
+        self._status_ack_awaiting = {}
         self._lock = asyncio.Lock()
         self._conn_lost_task = None
 
@@ -179,18 +183,28 @@ class ZiGate:
             if data[2] in self._status_awaiting:
                 fut = self._status_awaiting.pop(data[2])
                 fut.set_result((data, lqi))
+        if cmd == 0x8012 or cmd == 0x8702:
+            LOGGER.debug("data confirm received %s sqn:%s ", hex(cmd),  data[4])
+            if data[4] in self._status_datasent_awaiting: #looking for APS SQN
+                fut = self._status_datasent_awaiting.pop(data[4])
+                fut.set_result(data[4])
+        if cmd == 0x8011:
+            if data[4] in self._status_ack_awaiting: #looking for APS SQN
+                fut = self._status_ack_awaiting.pop(data[4])
+                fut.set_result(data[4])
         if cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
 
-    async def command(self, cmd, data=b'', wait_response=None, wait_status=True, timeout=COMMAND_TIMEOUT):
+    async def command(self, cmd, data=b'', wait_response=None, wait_status=True, wait_for_datasent= False, wait_for_ack=False, timeout=COMMAND_TIMEOUT):
         
         await self._lock.acquire()
-        tries = 3
+        tries = 1
         result = None
         status_fut = None
         response_fut = None
+        sqn = None
         while tries > 0:
             if self._uart is None:
             # connection was lost
@@ -199,6 +213,9 @@ class ZiGate:
             if wait_status:
                 status_fut = asyncio.Future()
                 self._status_awaiting[cmd] = status_fut
+            if wait_for_ack:
+                ack_fut = asyncio.Future()
+                self._status_ack_awaiting[cmd] = ack_fut
             if wait_response:
                 response_fut = asyncio.Future()
                 self._awaiting[wait_response] = response_fut
@@ -208,7 +225,9 @@ class ZiGate:
                 LOGGER.debug('Wait for status to command 0x%04x', cmd)
                 try:
                     result = await asyncio.wait_for(status_fut, timeout=timeout)
-                    LOGGER.debug('Got status for 0x%04x : %s', cmd, result)
+                    data,lqi = result
+                    sqn = data[4]
+                    LOGGER.debug('Got status for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if cmd in self._status_awaiting:
                         del self._status_awaiting[cmd]
@@ -216,6 +235,40 @@ class ZiGate:
                         del self._awaiting[wait_response]
                     LOGGER.warning("No response to command 0x%04x", cmd)
                     LOGGER.debug('Tries count %s', tries)
+                    if tries > 0:
+                        LOGGER.warning("Retry command 0x%04x", cmd)
+                        continue
+                    else:
+                        self._lock.release()
+                        raise NoStatusError
+            if wait_for_datasent:
+                datasent_fut = asyncio.Future()
+                self._status_datasent_awaiting[sqn] = datasent_fut
+                LOGGER.debug('Wait for data sent for command 0x%04x', cmd)
+                try:
+                    sqn = await asyncio.wait_for(datasent_fut, timeout=timeout)
+                    LOGGER.debug('Got data sent info for 0x%04x : sqn:%s', cmd, sqn)
+                except asyncio.TimeoutError:
+                    LOGGER.warning("No data confirm for command 0x%04x", cmd)
+                    if sqn in self._status_datasent_awaiting:
+                        del self._status_datasent_awaiting[sqn]
+                    if tries > 0:
+                        LOGGER.warning("Retry command 0x%04x", cmd)
+                        continue
+                    else:
+                        self._lock.release()
+                        raise NoStatusError
+
+            if wait_for_ack:
+                ack_fut = asyncio.Future()
+                self._status_ack_awaiting[sqn] = ack_fut
+                LOGGER.debug('Wait for ack for command 0x%04x', cmd)
+                try:
+                    result = await asyncio.wait_for(ack_fut, timeout=timeout)
+                    LOGGER.debug('Got data sent info for 0x%04x : %s', cmd, result)
+                except asyncio.TimeoutError:
+                    if sqn in self._status_ack_awaiting:
+                        del self._status_ack_awaiting[sqn]
                     if tries > 0:
                         LOGGER.warning("Retry command 0x%04x", cmd)
                         continue
@@ -313,7 +366,7 @@ class ZiGate:
 
     async def permit_join(self, duration=60):
         data = t.serialize([0xfffc, duration, 0], COMMANDS[0x0049])
-        return await self.command(0x0049, data)
+        return await self.command(0x0049, data,wait_for_datasent=True)
 
     async def start_network(self):
         return await self.command(0x0024, wait_response=0x8024)
@@ -323,15 +376,27 @@ class ZiGate:
         return await self.command(0x0026, data)
 
     async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
-                                   cluster, payload, addr_mode=2, security=0):
+                                   cluster, payload, addr_mode=2, expect_reply = False, security=0):
         '''
         Send raw APS Data request
         '''
+        if expect_reply :
+            if (addr_mode == 0):
+                addr_mode = 6
+            elif(addr_mode == 2):
+                addr_mode = 7
+            elif (addr_mode == 3):
+                addr_mode = 8
+
         radius = 0
+        wait_for_datasent = True
+        if addr == 0x0000 or addr_mode == 4:
+            wait_for_datasent = False
+
         data = t.serialize([addr_mode, addr,
                            src_ep, dst_ep, cluster, profile,
                            security, radius, payload], COMMANDS[0x0530])
-        return await self.command(0x0530, data)
+        return await self.command(0x0530, data , wait_for_ack = expect_reply, wait_for_datasent=wait_for_datasent)
 
     def handle_callback(self, *args):
         """run application callback handler"""
