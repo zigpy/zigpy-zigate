@@ -16,8 +16,9 @@ from zigpy_zigate import types as t
 
 LOGGER = logging.getLogger(__name__)
 
-COMMAND_TIMEOUT = 20
+COMMAND_TIMEOUT = 1.5
 PROBE_TIMEOUT = 3.0
+DATA_CONFIRM_TIMEOUT = 7
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
@@ -246,7 +247,7 @@ class ZiGate:
                 self._status_datasent_awaiting[sqn] = datasent_fut
                 LOGGER.debug('Wait for data sent for command 0x%04x', cmd)
                 try:
-                    sqn = await asyncio.wait_for(datasent_fut, timeout=timeout)
+                    sqn = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
                     LOGGER.debug('Got data sent info for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     LOGGER.warning("No data confirm for command 0x%04x", cmd)
@@ -366,7 +367,7 @@ class ZiGate:
 
     async def permit_join(self, duration=60):
         data = t.serialize([0xfffc, duration, 0], COMMANDS[0x0049])
-        return await self.command(0x0049, data,wait_for_datasent=True)
+        return await self.command(0x0049, data,wait_for_datasent=False)
 
     async def start_network(self):
         return await self.command(0x0024, wait_response=0x8024)
