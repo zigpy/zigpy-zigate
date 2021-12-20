@@ -381,7 +381,7 @@ class ZiGate:
         '''
         Send raw APS Data request
         '''
-        if expect_reply :
+        if not expect_reply :
             if (addr_mode == 0):
                 addr_mode = 6
             elif(addr_mode == 2):
