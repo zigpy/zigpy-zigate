@@ -193,7 +193,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def _request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data,
                       expect_reply=True, use_ieee=False, addr_mode=2):
-        src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
         LOGGER.debug('request %s',
                      (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee,addr_mode,expect_reply))
         try:
