@@ -188,11 +188,11 @@ class ZiGate:
             LOGGER.debug("data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
                 fut = self._status_datasent_awaiting.pop(data[4])
-                fut.set_result(data[4])
+                fut.set_result((data, lqi))
         if cmd == 0x8011:
             if data[4] in self._status_ack_awaiting: #looking for APS SQN
                 fut = self._status_ack_awaiting.pop(data[4])
-                fut.set_result(data[4])
+                fut.set_result((data, lqi))
         if cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
@@ -245,9 +245,11 @@ class ZiGate:
             if wait_for_datasent:
                 datasent_fut = asyncio.Future()
                 self._status_datasent_awaiting[sqn] = datasent_fut
-                LOGGER.debug('Wait for data sent for command 0x%04x', cmd)
+                LOGGER.debug('Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
-                    sqn = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
+                    result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
+                    data,lqi = result
+                    sqn=data[4]
                     LOGGER.debug('Got data sent info for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     LOGGER.warning("No data confirm for command 0x%04x", cmd)
@@ -263,10 +265,12 @@ class ZiGate:
             if wait_for_ack:
                 ack_fut = asyncio.Future()
                 self._status_ack_awaiting[sqn] = ack_fut
-                LOGGER.debug('Wait for ack for command 0x%04x', cmd)
+                LOGGER.debug('Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
                     result = await asyncio.wait_for(ack_fut, timeout=timeout)
-                    LOGGER.debug('Got data sent info for 0x%04x : %s', cmd, result)
+                    data,lqi = result
+                    sqn=data[4]                    
+                    LOGGER.debug('Got ack for 0x%04x : %s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if sqn in self._status_ack_awaiting:
                         del self._status_ack_awaiting[sqn]
