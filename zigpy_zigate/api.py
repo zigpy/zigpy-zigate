@@ -19,6 +19,9 @@ LOGGER = logging.getLogger(__name__)
 COMMAND_TIMEOUT = 1.5
 PROBE_TIMEOUT = 3.0
 DATA_CONFIRM_TIMEOUT = 7
+ACK_TIMEOUT = 7
+
+SUCCESS = 0x00
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
@@ -181,19 +184,27 @@ class ZiGate:
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:
+            LOGGER.debug("data_received : status received %s cmd:0x%04x sqn:%s", hex(cmd),  data[2], data[4])
             if data[2] in self._status_awaiting:
                 fut = self._status_awaiting.pop(data[2])
                 fut.set_result((data, lqi))
         if cmd == 0x8012 or cmd == 0x8702:
-            LOGGER.debug("data confirm received %s sqn:%s ", hex(cmd),  data[4])
+            LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
                 fut = self._status_datasent_awaiting.pop(data[4])
                 fut.set_result((data, lqi))
         if cmd == 0x8011:
+            LOGGER.debug("data_received : ack received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_ack_awaiting: #looking for APS SQN
                 fut = self._status_ack_awaiting.pop(data[4])
                 fut.set_result((data, lqi))
+        if cmd == 0x9999:
+            pass
+                #fut = self._status_extented_error.pop(data[4])
+                #fut.set_result((data, lqi))
         if cmd in self._awaiting:
+            LOGGER.debug("data_received : status received 0x%04x ", cmd)
+
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
@@ -206,6 +217,7 @@ class ZiGate:
         status_fut = None
         response_fut = None
         sqn = None
+        status = 0
         while tries > 0:
             if self._uart is None:
             # connection was lost
@@ -214,21 +226,20 @@ class ZiGate:
             if wait_status:
                 status_fut = asyncio.Future()
                 self._status_awaiting[cmd] = status_fut
-            if wait_for_ack:
-                ack_fut = asyncio.Future()
-                self._status_ack_awaiting[cmd] = ack_fut
             if wait_response:
                 response_fut = asyncio.Future()
                 self._awaiting[wait_response] = response_fut
+            status = SUCCESS
             tries -= 1
             self._uart.send(cmd, data)
             if wait_status:
-                LOGGER.debug('Wait for status to command 0x%04x', cmd)
+                LOGGER.debug('command : Wait for status to command 0x%04x', cmd)
                 try:
                     result = await asyncio.wait_for(status_fut, timeout=timeout)
                     data,lqi = result
                     sqn = data[4]
-                    LOGGER.debug('Got status for 0x%04x : sqn:%s', cmd, sqn)
+                    status = data[0]
+                    LOGGER.debug('command : Got status for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if cmd in self._status_awaiting:
                         del self._status_awaiting[cmd]
@@ -242,15 +253,16 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoStatusError
-            if wait_for_datasent:
+            if (status == SUCCESS ) and (wait_for_datasent):
                 datasent_fut = asyncio.Future()
                 self._status_datasent_awaiting[sqn] = datasent_fut
-                LOGGER.debug('Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
+                LOGGER.debug('command : Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
                     result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
                     data,lqi = result
                     sqn=data[4]
-                    LOGGER.debug('Got data sent info for 0x%04x : sqn:%s', cmd, sqn)
+                    status = data[0]
+                    LOGGER.debug('command : Got data sent info for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     LOGGER.warning("No data confirm for command 0x%04x", cmd)
                     if sqn in self._status_datasent_awaiting:
@@ -262,15 +274,16 @@ class ZiGate:
                         self._lock.release()
                         raise NoStatusError
 
-            if wait_for_ack:
+            if (status == SUCCESS ) and wait_for_ack:
                 ack_fut = asyncio.Future()
                 self._status_ack_awaiting[sqn] = ack_fut
-                LOGGER.debug('Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
+                LOGGER.debug('command : Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
-                    result = await asyncio.wait_for(ack_fut, timeout=timeout)
+                    result = await asyncio.wait_for(ack_fut, timeout=ACK_TIMEOUT)
                     data,lqi = result
-                    sqn=data[4]                    
-                    LOGGER.debug('Got ack for 0x%04x : %s', cmd, sqn)
+                    sqn=data[4] 
+                    status = data[0]
+                    LOGGER.debug('command : Got ack for 0x%04x : %s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if sqn in self._status_ack_awaiting:
                         del self._status_ack_awaiting[sqn]
@@ -280,11 +293,14 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoStatusError
-            if wait_response:
-                LOGGER.debug('Wait for response 0x%04x', wait_response)
+
+            if (status == SUCCESS ) and (wait_response):
+                LOGGER.debug('command : Wait for response 0x%04x', wait_response)
                 try:
                     result = await asyncio.wait_for(response_fut, timeout=timeout)
-                    LOGGER.debug('Got response 0x%04x : %s', wait_response, result)
+                    data,lqi = result
+                    LOGGER.debug('command : Got response 0x%04x : %s', wait_response, result)
+                    #status = data[0] some response do not have a status eg: 0x8010
                 except asyncio.TimeoutError:
                     if wait_response in self._awaiting:
                         del self._awaiting[wait_response]
@@ -296,6 +312,12 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoResponseError
+        if status == 0xa3 or status == 0xa6 or status == 0xc2:
+            LOGGER.warning("command : status %s", hex(cmd))
+
+        #wait got 9999 if status  0xA3 0xA6 0xC2
+
+            pass
         self._lock.release()
         return result
 
