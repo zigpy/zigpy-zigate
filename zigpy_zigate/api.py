@@ -210,6 +210,8 @@ class ZiGate:
         self.handle_callback(cmd, data, lqi)
 
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True, wait_for_datasent= False, wait_for_ack=False, timeout=COMMAND_TIMEOUT):
+        LOGGER.debug('command :cmd=0x%04x  wait_status=%s wait_for_datasent=%s wait_for_ack=%s', 
+                                cmd, wait_status, wait_for_datasent,wait_for_ack)
         
         await self._lock.acquire()
         tries = 1
@@ -239,6 +241,13 @@ class ZiGate:
                     data,lqi = result
                     sqn = data[4]
                     status = data[0]
+                    if (wait_for_datasent):
+                        datasent_fut = asyncio.Future()
+                        self._status_datasent_awaiting[sqn] = datasent_fut
+                    if (wait_for_ack):
+                        ack_fut = asyncio.Future()
+                        self._status_ack_awaiting[sqn] = ack_fut
+
                     LOGGER.debug('command : Got status for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if cmd in self._status_awaiting:
@@ -254,8 +263,6 @@ class ZiGate:
                         self._lock.release()
                         raise NoStatusError
             if (status == SUCCESS ) and (wait_for_datasent):
-                datasent_fut = asyncio.Future()
-                self._status_datasent_awaiting[sqn] = datasent_fut
                 LOGGER.debug('command : Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
                     result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
@@ -275,8 +282,6 @@ class ZiGate:
                         raise NoStatusError
 
             if (status == SUCCESS ) and wait_for_ack:
-                ack_fut = asyncio.Future()
-                self._status_ack_awaiting[sqn] = ack_fut
                 LOGGER.debug('command : Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
                     result = await asyncio.wait_for(ack_fut, timeout=ACK_TIMEOUT)
