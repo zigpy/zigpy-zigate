@@ -33,7 +33,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._ieee = 0
         self.version = ''
 
-    async def startup(self, auto_form=False):
+    async def startup(self, auto_form=False,force_form=False):
         """Perform a complete application startup"""
         self._api = await ZiGate.new(self._config[CONF_DEVICE], self)
         await self._api.set_raw_mode()
@@ -48,7 +48,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         network_state, lqi = await self._api.get_network_state()
         should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
 
-        if auto_form and should_form:
+        if auto_form and (should_form or force_form):
             await self.form_network()
         if should_form:
             network_state, lqi = await self._api.get_network_state()
