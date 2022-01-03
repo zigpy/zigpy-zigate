@@ -106,10 +106,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             ieee = zigpy.types.EUI64(response[0])
             self.handle_leave(nwk, ieee)
         elif msg == 0x004D:  # join
-            nwk = response[0]
-            ieee = zigpy.types.EUI64(response[1])
-            parent_nwk = 0
-            self.handle_join(nwk, ieee, parent_nwk)
+            if lqi != 0 :
+                nwk = response[0]
+                ieee = zigpy.types.EUI64(response[1])
+                parent_nwk = 0
+                self.handle_join(nwk, ieee, parent_nwk)
             # Temporary disable two stages pairing due to firmware bug
             # rejoin = response[3]
             # if nwk in self._pending_join or rejoin:
