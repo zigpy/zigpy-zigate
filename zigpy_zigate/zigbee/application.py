@@ -56,6 +56,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._ieee = zigpy.types.EUI64(network_state[1])
 
         dev = ZiGateDevice(self, self._ieee, self._nwk)
+        #await dev.schedule_initialize() // it blocks zigate for the moment
         self.devices[dev.ieee] = dev
         self._udpate_network_info(network_state)
 
