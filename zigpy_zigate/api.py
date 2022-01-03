@@ -43,6 +43,7 @@ RESPONSES = {
     0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
     0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # Data not confirmed
     0x8806: (t.uint8_t,),
+    0x9999: (t.uint8_t,),
 }
 
 COMMANDS = {
@@ -199,9 +200,7 @@ class ZiGate:
                 fut = self._status_ack_awaiting.pop(data[4])
                 fut.set_result((data, lqi))
         if cmd == 0x9999:
-            pass
-                #fut = self._status_extented_error.pop(data[4])
-                #fut.set_result((data, lqi))
+            LOGGER.debug("data_received : error details received %s error:%s ", hex(cmd),  data[0])
         if cmd in self._awaiting:
             LOGGER.debug("data_received : status received 0x%04x ", cmd)
 
@@ -318,11 +317,9 @@ class ZiGate:
                         self._lock.release()
                         raise NoResponseError
         if status == 0xa3 or status == 0xa6 or status == 0xc2:
-            LOGGER.warning("command : status %s", hex(cmd))
+            LOGGER.warning("command : error status cmd:%s error:%d", hex(cmd), status)
+            #wait got 9999 if status  0xA3 0xA6 0xC2
 
-        #wait got 9999 if status  0xA3 0xA6 0xC2
-
-            pass
         self._lock.release()
         return result
 
