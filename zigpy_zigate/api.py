@@ -191,7 +191,7 @@ class ZiGate:
             sqn_aps = None
             if sqn_exist != 0 :
                 sqn_aps = data[4]
-            LOGGER.debug("data_received : status received %s cmd:0x%04x sqn:%s", hex(cmd),  cmd_called, sqn_aps)
+            LOGGER.debug("data_received : status received %s status:0x%02x cmd:0x%04x sqn:%s", hex(cmd),status ,cmd_called ,sqn_aps)
             if cmd_called in self._status_awaiting:
                 fut = self._status_awaiting.pop(cmd_called)
                 if sqn_aps is not None:
@@ -201,15 +201,15 @@ class ZiGate:
         if cmd == 0x8012 or cmd == 0x8702:
             LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
-                fut = self._status_datasent_awaiting.pop(data[4])
+                fut = self._status_datasent_awaiting[data[4]]
                 fut.set_result((data, lqi))
         if cmd == 0x8011:
             LOGGER.debug("data_received : ack received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_ack_awaiting: #looking for APS SQN
-                fut = self._status_ack_awaiting.pop(data[4])
+                fut = self._status_ack_awaiting[data[4]]
                 fut.set_result((data, lqi))
         if cmd == 0x9999:
-            LOGGER.error("data_received : error details received %s error:%s ", hex(cmd),  data[0])
+            LOGGER.error("data_received : error details received %s error:0x%02x ", hex(cmd),  data[0])
         if cmd in self._awaiting:
             LOGGER.debug("data_received : status received 0x%04x ", cmd)
 
@@ -276,6 +276,7 @@ class ZiGate:
                 LOGGER.debug('command : Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
                     result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
+                    self._status_datasent_awaiting.pop(sqn)
                     data,lqi = result
                     sqn=data[4]
                     status = data[0]
@@ -295,6 +296,7 @@ class ZiGate:
                 LOGGER.debug('command : Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
                     result = await asyncio.wait_for(ack_fut, timeout=ACK_TIMEOUT)
+                    self._status_ack_awaiting.pop(sqn)
                     data,lqi = result
                     sqn=data[4] 
                     status = data[0]
@@ -330,7 +332,7 @@ class ZiGate:
         if status == 0xa3 or status == 0xa6 or status == 0xc2:
             LOGGER.error("command : error status cmd:%s error:%d", hex(cmd), status)
             #wait got 9999 if status  0xA3 0xA6 0xC2
-
+        LOGGER.debug("command : end command cmd:0x%04x result:%s", cmd, result)
         self._lock.release()
         return result
 
