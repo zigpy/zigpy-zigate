@@ -194,11 +194,10 @@ class ZiGate:
             LOGGER.debug("data_received : status received %s cmd:0x%04x sqn:%s", hex(cmd),  cmd_called, sqn_aps)
             if cmd_called in self._status_awaiting:
                 fut = self._status_awaiting.pop(cmd_called)
-                fut.set_result((data, lqi))
                 if sqn_aps is not None:
                     self._status_datasent_awaiting[sqn_aps] = asyncio.Future()
                     self._status_ack_awaiting[sqn_aps] = asyncio.Future()
-                          
+                fut.set_result((data, lqi))
         if cmd == 0x8012 or cmd == 0x8702:
             LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
@@ -210,7 +209,7 @@ class ZiGate:
                 fut = self._status_ack_awaiting.pop(data[4])
                 fut.set_result((data, lqi))
         if cmd == 0x9999:
-            LOGGER.debug("data_received : error details received %s error:%s ", hex(cmd),  data[0])
+            LOGGER.error("data_received : error details received %s error:%s ", hex(cmd),  data[0])
         if cmd in self._awaiting:
             LOGGER.debug("data_received : status received 0x%04x ", cmd)
 
@@ -218,7 +217,7 @@ class ZiGate:
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
 
-    async def command(self, cmd, data=b'', wait_response=None, wait_status=True, wait_for_datasent= False, wait_for_ack=False, timeout=COMMAND_TIMEOUT):
+    async def command(self, cmd, data=b'', wait_response=None, wait_status=True,wait_for_datasent= False ,wait_for_ack=False ,timeout=COMMAND_TIMEOUT):
         LOGGER.debug('command :cmd=0x%04x  wait_status=%s wait_for_datasent=%s wait_for_ack=%s', 
                                 cmd, wait_status, wait_for_datasent,wait_for_ack)
         
@@ -330,7 +329,7 @@ class ZiGate:
                         self._lock.release()
                         raise NoResponseError
         if status == 0xa3 or status == 0xa6 or status == 0xc2:
-            LOGGER.warning("command : error status cmd:%s error:%d", hex(cmd), status)
+            LOGGER.error("command : error status cmd:%s error:%d", hex(cmd), status)
             #wait got 9999 if status  0xA3 0xA6 0xC2
 
         self._lock.release()
