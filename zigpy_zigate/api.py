@@ -185,10 +185,20 @@ class ZiGate:
             return
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == 0x8000:
-            LOGGER.debug("data_received : status received %s cmd:0x%04x sqn:%s", hex(cmd),  data[2], data[4])
-            if data[2] in self._status_awaiting:
-                fut = self._status_awaiting.pop(data[2])
+            status = data[0]
+            cmd_called = data[2]
+            sqn_exist = data[3]
+            sqn_aps = None
+            if sqn_exist != 0 :
+                sqn_aps = data[4]
+            LOGGER.debug("data_received : status received %s cmd:0x%04x sqn:%s", hex(cmd),  cmd_called, sqn_aps)
+            if cmd_called in self._status_awaiting:
+                fut = self._status_awaiting.pop(cmd_called)
                 fut.set_result((data, lqi))
+                if sqn_aps is not None:
+                    self._status_datasent_awaiting[sqn_aps] = asyncio.Future()
+                    self._status_ack_awaiting[sqn_aps] = asyncio.Future()
+                          
         if cmd == 0x8012 or cmd == 0x8702:
             LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
@@ -238,15 +248,16 @@ class ZiGate:
                 try:
                     result = await asyncio.wait_for(status_fut, timeout=timeout)
                     data,lqi = result
-                    sqn = data[4]
                     status = data[0]
-                    if (wait_for_datasent):
-                        datasent_fut = asyncio.Future()
-                        self._status_datasent_awaiting[sqn] = datasent_fut
-                    if (wait_for_ack):
-                        ack_fut = asyncio.Future()
-                        self._status_ack_awaiting[sqn] = ack_fut
+                    sqn_exist = data[3]
 
+                    if sqn_exist != 0 :
+                        sqn = data[4]
+
+                    if not wait_for_datasent and (sqn is not None):
+                        del self._status_datasent_awaiting[sqn]
+                    if not wait_for_ack and  (sqn is not None):
+                        del self._status_ack_awaiting[sqn]
                     LOGGER.debug('command : Got status for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if cmd in self._status_awaiting:
@@ -261,9 +272,10 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoStatusError
-            if (status == SUCCESS ) and (wait_for_datasent):
+            if (status == SUCCESS ) and wait_for_datasent and (sqn is not None):
                 LOGGER.debug('command : Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
+                    datasent_fut = self._status_datasent_awaiting[sqn]
                     result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
                     data,lqi = result
                     sqn=data[4]
@@ -280,9 +292,10 @@ class ZiGate:
                         self._lock.release()
                         raise NoStatusError
 
-            if (status == SUCCESS ) and wait_for_ack:
+            if (status == SUCCESS ) and wait_for_ack and (sqn is not None):
                 LOGGER.debug('command : Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
+                    ack_fut = self._status_ack_awaiting[sqn]
                     result = await asyncio.wait_for(ack_fut, timeout=ACK_TIMEOUT)
                     data,lqi = result
                     sqn=data[4] 
