@@ -252,11 +252,12 @@ class ZiGate:
 
                     if sqn_exist != 0 :
                         sqn = data[4]
-
-                    if not wait_for_datasent and (sqn is not None):
-                        del self._status_datasent_awaiting[sqn]
-                    if not wait_for_ack and  (sqn is not None):
-                        del self._status_ack_awaiting[sqn]
+                        datasent_fut = self._status_datasent_awaiting[sqn]
+                        ack_fut = self._status_ack_awaiting[sqn]
+                        if not wait_for_datasent:
+                            del self._status_datasent_awaiting[sqn]
+                        if not wait_for_ack :
+                            del self._status_ack_awaiting[sqn]
                     LOGGER.debug('command : Got status for 0x%04x : sqn:%s', cmd, sqn)
                 except asyncio.TimeoutError:
                     if cmd in self._status_awaiting:
@@ -274,7 +275,6 @@ class ZiGate:
             if (status == SUCCESS ) and wait_for_datasent and (sqn is not None):
                 LOGGER.debug('command : Wait for data sent for command 0x%04x sqn:%d', cmd,sqn)
                 try:
-                    datasent_fut = self._status_datasent_awaiting[sqn]
                     result = await asyncio.wait_for(datasent_fut, timeout=DATA_CONFIRM_TIMEOUT)
                     data,lqi = result
                     sqn=data[4]
@@ -294,7 +294,6 @@ class ZiGate:
             if (status == SUCCESS ) and wait_for_ack and (sqn is not None):
                 LOGGER.debug('command : Wait for ack for command 0x%04x sqn:%d', cmd, sqn)
                 try:
-                    ack_fut = self._status_ack_awaiting[sqn]
                     result = await asyncio.wait_for(ack_fut, timeout=ACK_TIMEOUT)
                     data,lqi = result
                     sqn=data[4] 
