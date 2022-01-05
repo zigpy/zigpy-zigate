@@ -108,8 +108,10 @@ class ZiGate:
         self._status_ack_awaiting = {}
         self._lock = asyncio.Lock()
         self._conn_lost_task = None
+        self._version = None
 
         self.network_state = None
+        self.zigate_version = None
 
     @classmethod
     async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
@@ -337,10 +339,13 @@ class ZiGate:
         return result
 
     async def version(self):
-        return await self.command(0x0010, wait_response=0x8010)
+        if self._version is None:
+            self._version = await self.command(0x0010, wait_response=0x8010)
+        return self._version
 
     async def version_str(self):
         version, lqi = await self.version()
+        self.zigate_version = version[0]
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])
         return version
@@ -390,6 +395,9 @@ class ZiGate:
         return await self.command(0x004a)#, wait_response=0x804a, timeout=10)
 
     async def set_tx_power(self, power=63):
+        await self.version_str ()
+        if self.zigate_version == 5: # zigatev2 has no tx power function
+            return
         if power > 63:
             power = 63
         if power < 0:
