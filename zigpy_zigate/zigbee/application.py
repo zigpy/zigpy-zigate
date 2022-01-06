@@ -14,6 +14,8 @@ from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
 from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
+ZDO_PROFILE = 0x0000
+ZDO_ENDPOINT = 0
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
@@ -107,10 +109,26 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_leave(nwk, ieee)
         elif msg == 0x004D:  # join
             if lqi != 0 :
-                nwk = response[0]
+                nwk = zigpy.types.NWK(response[0])
                 ieee = zigpy.types.EUI64(response[1])
                 parent_nwk = 0
                 self.handle_join(nwk, ieee, parent_nwk)
+                device = self.get_device(ieee=ieee)
+                rssi = 0
+                device.radio_details(lqi, rssi)
+                data = t.uint8_t (0x00).serialize() #sqn 
+                data += nwk.serialize() # nwk
+                data += ieee.serialize() # ieee
+                data += response[2].serialize() #mac cap
+
+                self.handle_message(
+                    device,
+                    profile=ZDO_PROFILE,
+                    cluster=0x0013,
+                    src_ep=ZDO_ENDPOINT,
+                    dst_ep=ZDO_ENDPOINT,
+                    message=data ,
+                )                
             # Temporary disable two stages pairing due to firmware bug
             # rejoin = response[3]
             # if nwk in self._pending_join or rejoin:
