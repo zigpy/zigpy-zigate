@@ -25,6 +25,7 @@ SUCCESS = 0x00
 
 RESPONSES = {
     0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
+    0x8008: (t.uint32_t,), # Hearbeat : every minute sent by Zigate
     0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
     0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
              t.Address, t.Address, t.Bytes),
