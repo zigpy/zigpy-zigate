@@ -140,10 +140,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_message(device, response[1],
                                 response[2],
                                 response[3], response[4], response[-1])
-        elif msg == 0x8011 or msg == 0x8012:  # ACK Data
+        elif msg == 0x8011:  # ACK Data
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
             # self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x8012:  # ZPS Event
+            LOGGER.debug('ZPS Event APS data confirm, message routed to %s %s', response[3], response[0])
         elif msg == 0x8035:  # PDM Event
             try:
                 event = PDM_EVENT(response[0]).name
@@ -153,6 +155,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == 0x8702:  # APS Data confirm Fail
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x9999:  # ZCL event
+            LOGGER.debug('ZCL application started %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
         try:

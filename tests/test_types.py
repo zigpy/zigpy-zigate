@@ -64,6 +64,9 @@ def test_deserialize():
     assert result[3] is None
     assert len(result) == 4
 
+    # Frame received: 8012000a2800010102bc8c73000100
+    # data received 0x8012 b'00010102bc8c730001'
+
     data = binascii.unhexlify(b'00010102bc8c730001')
     schema = RESPONSES[0x8012]
     result, rest = t.deserialize(data, schema)
@@ -74,6 +77,15 @@ def test_deserialize():
                                   address=t.NWK.deserialize(b'\xbc\x8c')[0])
     assert result[4] == 0x73
     assert len(result) == 5
+
+    # Frame received: 99990002828000
+    # data received 0x9999 b'80' LQI:0
+
+    data = binascii.unhexlify(b'80')
+    schema = RESPONSES[0x9999]
+    result, rest = t.deserialize(data, schema)
+    assert result[0] == 0x80
+    assert len(result) == 1
 
 def test_serialize():
     data = [True]
