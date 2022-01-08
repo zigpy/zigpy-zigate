@@ -1,3 +1,4 @@
+import binascii
 from zigpy_zigate import types as t
 from zigpy_zigate.api import RESPONSES, COMMANDS
 
@@ -62,6 +63,17 @@ def test_deserialize():
     assert result[2] is None
     assert result[3] is None
     assert len(result) == 4
+
+    data = binascii.unhexlify(b'00010102bc8c730001')
+    schema = RESPONSES[0x8012]
+    result, rest = t.deserialize(data, schema)
+    assert result[0] == 0x00
+    assert result[1] == 0x01
+    assert result[2] == 0x01
+    assert result[3] == t.Address(address_mode=t.ADDRESS_MODE.NWK,
+                                  address=t.NWK.deserialize(b'\xbc\x8c')[0])
+    assert result[4] == 0x73
+    assert len(result) == 5
 
 def test_serialize():
     data = [True]
