@@ -140,7 +140,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_message(device, response[1],
                                 response[2],
                                 response[3], response[4], response[-1])
-        elif msg == 0x8011:  # ACK Data
+        elif msg == 0x8011 or msg == 0x8012:  # ACK Data
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
             # self._handle_frame_failure(response[4], response[0])
