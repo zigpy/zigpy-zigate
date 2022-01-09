@@ -44,8 +44,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])
         self.version = version
-        if version < '3.1d':
-            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.1d or newer')
+        if version < '3.21':
+            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
 
         network_state, lqi = await self._api.get_network_state()
         should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
