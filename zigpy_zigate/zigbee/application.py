@@ -246,7 +246,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     def _udpate_network_info (self,network_state):
         self.state.network_information = zigpy.state.NetworkInformation(
-            extended_pan_id=network_state[3],
+            extended_pan_id=zigpy.types.ExtendedPanId(network_state[3]),
             pan_id=network_state[2],
             nwk_update_id=None,
             nwk_manager_id=0x0000,
@@ -261,8 +261,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             stack_specific=None,
         )
         self.state.node_information= zigpy.state.NodeInfo (
-            nwk = network_state[0],
-            ieee = network_state[1],
+            nwk = zigpy.types.NWK(network_state[0]),
+            ieee = zigpy.types.EUI64(network_state[1]),
             logical_type = None
         )
 
