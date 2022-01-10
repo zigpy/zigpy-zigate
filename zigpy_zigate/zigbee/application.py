@@ -11,7 +11,7 @@ import zigpy.util
 from zigpy_zigate import types as t
 from zigpy_zigate import common as c
 from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
-from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE
+from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE, CONF_NWK, CONF_NWK_EXTENDED_PAN_ID
 
 LOGGER = logging.getLogger(__name__)
 ZDO_PROFILE = 0x0000
@@ -67,12 +67,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if self._api:
             self._api.close()
 
-    async def form_network(self, channel=None, pan_id=None, extended_pan_id=None):
+    async def form_network(self, channel=None, pan_id=None):
         await self._api.set_channel(channel)
         if pan_id:
             LOGGER.warning('Setting pan_id is not supported by ZiGate')
 #             self._api.set_panid(pan_id)
-        if extended_pan_id:
+        extended_pan_id = self.config[CONF_NWK][CONF_NWK_EXTENDED_PAN_ID]
+
+        if extended_pan_id is None:
             await self._api.set_extended_panid(extended_pan_id)
 
         network_formed, lqi = await self._api.start_network()
