@@ -16,7 +16,7 @@ ZiGate is a open source ZigBee adapter hardware that was initially launched on K
 The ZiGate USB adapter communicates via a PL-2303HX USB to Serial Bridge Controller module by Prolific. 
 There's also a Wi-Fi adapter to communicate with ZiGate over network.
 
-Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.1a firmware or later to work with this zigpy-zigate module, however ZiGate 3.1d firmware or later is recommended as it contains a specific bug-fix related to zigpy. See all available official ZiGate firmware releases [here (link)](https://github.com/fairecasoimeme/ZiGate/releases).
+Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.21 firmware or later to work with this zigpy-zigate module. See all available official ZiGate firmware releases [here (link)](https://github.com/fairecasoimeme/ZiGate/releases).
 
 ### Known working ZiGate compatible Zigbee radio modules
 - [ZiGate + USB / ZiGate USB-TTL](https://zigate.fr/produit/zigate-USB/)
