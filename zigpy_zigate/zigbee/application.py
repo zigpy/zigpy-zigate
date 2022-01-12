@@ -102,6 +102,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def force_remove(self, dev):
         await self._api.remove_device(self._ieee, dev.ieee)
 
+    async def load_network_info(self, *, load_devices=False) -> None:
+        network_state, lqi = await self._api.get_network_state()
+        self._udpate_network_info(network_state)
+
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
 
