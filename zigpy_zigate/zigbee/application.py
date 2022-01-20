@@ -156,7 +156,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
         elif msg == 0x9999:  # ZCL event
-            LOGGER.debug('ZCL application started %s', response[0])
+            LOGGER.debug('Extended error code %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
         try:
