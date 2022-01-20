@@ -42,8 +42,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         version = '{:x}'.format(version[1])
         version = '{}.{}'.format(version[0], version[1:])
         self.version = version
-        if version < '3.1d':
-            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.1d or newer')
+        if version < '3.21':
+            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
 
         network_state, lqi = await self._api.get_network_state()
         should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
@@ -144,6 +144,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
             # self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x8012:  # ZPS Event
+            LOGGER.debug('ZPS Event APS data confirm, message routed to %s %s', response[3], response[0])
         elif msg == 0x8035:  # PDM Event
             try:
                 event = PDM_EVENT(response[0]).name
@@ -153,6 +155,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == 0x8702:  # APS Data confirm Fail
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x9999:  # ZCL event
+            LOGGER.warning('Extended error code %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
         try:
