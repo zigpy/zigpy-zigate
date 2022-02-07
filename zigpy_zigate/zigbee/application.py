@@ -119,14 +119,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             #     self._pending_join.append(nwk)
         elif msg == 0x8002:
             if response[1] == 0x0 and response[2] == 0x13:
-                nwk = response[5].address
+                nwk = zigpy.types.NWK(response[5].address)
                 ieee = zigpy.types.EUI64(response[7][3:11])
                 parent_nwk = 0
                 self.handle_join(nwk, ieee, parent_nwk)
                 return
             try:
                 if response[5].address_mode == t.ADDRESS_MODE.NWK:
-                    device = self.get_device(nwk=response[5].address)
+                    device = self.get_device(nwk = zigpy.types.NWK(response[5].address))
                 elif response[5].address_mode == t.ADDRESS_MODE.IEEE:
                     device = self.get_device(ieee=zigpy.types.EUI64(response[5].address))
                 else:
