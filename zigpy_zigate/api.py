@@ -23,42 +23,102 @@ ACK_TIMEOUT = 7
 
 SUCCESS = 0x00
 
+
+class CommandId(enum.IntEnum):
+    SET_RAWMODE = 0x0002
+    SET_TIMESERVER = 0x0016
+    SET_LED = 0x0018
+    SET_CE_FCC = 0x0019
+    SET_EXT_PANID = 0x0020
+    SET_CHANNELMASK = 0x0021
+    NETWORK_REMOVE_DEVICE = 0x0026
+    PERMIT_JOINING_REQUEST = 0x0049
+    MANAGEMENT_NETWORK_UPDATE_REQUEST = 0x004A
+    SEND_RAW_APS_DATA_PACKET = 0x0530
+    AHI_SET_TX_POWER = 0x0806
+
+
+class ResponseId(enum.IntEnum):
+    DEVICE_ANNOUNCE = 0x004D
+    CONTROLLER_HEARTBEAT = 0x8008
+    STATUS = 0x8000
+    CONTROLLER_LOG = 0x8001
+    DATA_INDICATION = 0x8002
+    PDM_LOADED = 0x0302
+    NODE_NON_FACTORY_NEW_RESTART = 0x8006
+    NODE_FACTORY_NEW_RESTART = 0x8007
+    NETWORK_STATE_RSP = 0x8009
+    VERSION_LIST = 0x8010
+    ACK_DATA = 0x8011
+    APS_DATA_CONFIRM = 0x8012
+    GET_TIMESERVER_LIST = 0x8017
+    NETWORK_JOINED_FORMED = 0x8024
+    PDM_EVENT = 0x8035
+    LEAVE_INDICATION = 0x8048
+    ROUTE_DISCOVERY_CONFIRM = 0x8701
+    APS_DATA_CONFIRM_FAILED = 0x8702
+    AHI_SET_TX_POWER_RSP = 0x8806
+    CONTROLLER_EXTENDED_ERROR = 0x9999
+
+
 RESPONSES = {
-    0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
-    0x8008: (t.uint32_t,), # Hearbeat : every minute sent by Zigate
-    0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
-    0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t,
-             t.Address, t.Address, t.Bytes),
-    0x0302: (t.uint8_t,),
-    0x8001: (t.Bytes,),
-    0x8006: (t.uint8_t,),
-    0x8007: (t.uint8_t,),
-    0x8009: (t.NWK, t.EUI64, t.uint16_t, t.EUI64, t.uint8_t),
-    0x8010: (t.uint16_t, t.uint16_t),
-    0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
-    0x8017: (t.uint32_t,),
-    0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
-    0x8035: (t.uint8_t, t.uint32_t),
-    0x8048: (t.EUI64, t.uint8_t),
-    0x8701: (t.uint8_t, t.uint8_t),
-    0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
-    0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # Data not confirmed
-    0x8806: (t.uint8_t,),
-    0x9999: (t.uint8_t,),
+    # 0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
+    ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
+    # 0x8008: (t.uint32_t,), # Hearbeat : every minute sent by Zigate
+    ResponseId.CONTROLLER_HEARTBEAT: ( t.uint32_t, ),
+    # 0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
+    ResponseId.STATUS: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
+    # 0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Address, t.Address, t.Bytes),
+    ResponseId.DATA_INDICATION: ( t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Address, t.Address, t.Bytes, ),
+    # 0x8001: (t.Bytes,),
+    ResponseId.CONTROLLER_LOG: (t.Bytes, ),
+    # 0x0302: (t.uint8_t,),
+    ResponseId.PDM_LOADED: (t.uint8_t,),
+    ResponseId.NODE_NON_FACTORY_NEW_RESTART: (t.uint8_t,),
+    ResponseId.NODE_FACTORY_NEW_RESTART: (t.uint8_t,),
+    ResponseId.NETWORK_STATE_RSP: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
+    ResponseId.VERSION_LIST: (t.uint16_t, t.uint16_t),
+    # 0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
+    ResponseId.ACK_DATA: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
+    # 0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
+    ResponseId.APS_DATA_CONFIRM: ( t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t ),
+    ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
+    ResponseId.NETWORK_JOINED_FORMED: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
+    ResponseId.PDM_EVENT: (t.uint8_t, t.uint32_t),
+    ResponseId.LEAVE_INDICATION: (t.EUI64, t.uint8_t),
+    # 0x8701: (t.uint8_t, t.uint8_t),
+    ResponseId.ROUTE_DISCOVERY_CONFIRM: (t.uint8_t, t.uint8_t),
+    # 0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # Data not confirmed
+    ResponseId.APS_DATA_CONFIRM_FAILED: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t ),
+    # 0x8806: (t.uint8_t,),
+    ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
+    # 0x9999: (t.uint8_t,),
+    ResponseId.CONTROLLER_EXTENDED_ERROR: (t.uint8_t,),
+
+    # 0x8006: (t.uint8_t,),
+    # 0x8007: (t.uint8_t,),
+    # 0x8009: (t.NWK, t.EUI64, t.uint16_t, t.EUI64, t.uint8_t),
+    # 0x8010: (t.uint16_t, t.uint16_t),
+    # 0x8017: (t.uint32_t,),
+    # 0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
+    # 0x8035: (t.uint8_t, t.uint32_t),
+    # 0x8048: (t.EUI64, t.uint8_t),
+    
+
 }
 
 COMMANDS = {
-    0x0002: (t.uint8_t,),
-    0x0016: (t.uint32_t,),
-    0x0018: (t.uint8_t,),
-    0x0019: (t.uint8_t,),
-    0x0020: (t.uint64_t,),
-    0x0021: (t.uint32_t,),
-    0x0026: (t.EUI64, t.EUI64),
-    0x0049: (t.NWK, t.uint8_t, t.uint8_t),
-    0x004a: (t.NWK, t.uint32_t, t.uint8_t, t.uint8_t, t.uint8_t, t.uint16_t),
-    0x0530: (t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes),
-    0x0806: (t.uint8_t,),
+    CommandId.SET_RAWMODE: (t.uint8_t,),
+    CommandId.SET_TIMESERVER: (t.uint32_t,),
+    CommandId.SET_LED: (t.uint8_t,),
+    CommandId.SET_CE_FCC: (t.uint8_t,),
+    CommandId.SET_EXT_PANID: (t.uint64_t,),
+    CommandId.SET_CHANNELMASK: (t.uint32_t,),
+    CommandId.NETWORK_REMOVE_DEVICE: (t.EUI64, t.EUI64),
+    CommandId.PERMIT_JOINING_REQUEST: (t.NWK, t.uint8_t, t.uint8_t),
+    CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST: ( t.NWK, t.uint32_t, t.uint8_t, t.uint8_t, t.uint8_t, t.uint16_t, ),
+    CommandId.SEND_RAW_APS_DATA_PACKET: ( t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes, ),
+    CommandId.AHI_SET_TX_POWER: (t.uint8_t,),
 }
 
 
@@ -191,9 +251,7 @@ class ZiGate:
             status = data[0]
             cmd_called = data[2]
             sqn_exist = data[3]
-            sqn_aps = None
-            if sqn_exist != 0 :
-                sqn_aps = data[4]
+            sqn_aps = data[4] if sqn_exist != 0 else None
             LOGGER.debug("data_received : status received %s status:0x%02x cmd:0x%04x sqn:%s", hex(cmd),status ,cmd_called ,sqn_aps)
             if cmd_called in self._status_awaiting:
                 fut = self._status_awaiting.pop(cmd_called)
@@ -201,7 +259,7 @@ class ZiGate:
                     self._status_datasent_awaiting[sqn_aps] = asyncio.Future()
                     self._status_ack_awaiting[sqn_aps] = asyncio.Future()
                 fut.set_result((data, lqi))
-        if cmd == 0x8012 or cmd == 0x8702:
+        if cmd in [0x8012, 0x8702]:
             LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
                 fut = self._status_datasent_awaiting[data[4]]
@@ -223,7 +281,7 @@ class ZiGate:
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True,wait_for_datasent= False ,wait_for_ack=False ,timeout=COMMAND_TIMEOUT):
         LOGGER.debug('command :cmd=0x%04x  wait_status=%s wait_for_datasent=%s wait_for_ack=%s', 
                                 cmd, wait_status, wait_for_datasent,wait_for_ack)
-        
+
         await self._lock.acquire()
         tries = 1
         result = None
@@ -332,7 +390,7 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoResponseError
-        if status == 0xa3 or status == 0xa6 or status == 0xc2:
+        if status in [0xA3, 0xA6, 0xC2]:
             LOGGER.error("command : error status cmd:%s error:%d", hex(cmd), status)
             #wait got 9999 if status  0xA3 0xA6 0xC2
         LOGGER.debug("command : end command cmd:0x%04x result:%s", cmd, result)
@@ -379,8 +437,7 @@ class ZiGate:
 
     async def get_time_server(self):
         timestamp, lqi = await self.command(0x0017, wait_response=0x8017)
-        dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
-        return dt
+        return datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
 
     async def set_led(self, enable=True):
         data = t.serialize([enable], COMMANDS[0x0018])
@@ -399,10 +456,8 @@ class ZiGate:
         await self.version_str ()
         if self.zigate_version == 5: # zigatev2 has no tx power function
             return
-        if power > 63:
-            power = 63
-        if power < 0:
-            power = 0
+        power = min(power, 63)
+        power = max(power, 0)
         data = t.serialize([power], COMMANDS[0x0806])
         power, lqi = await self.command(0x0806, data, wait_response=0x8806)
         return power[0]
@@ -444,10 +499,7 @@ class ZiGate:
                 addr_mode = 8
 
         radius = 0
-        wait_for_datasent = True
-        if addr == 0x0000 or addr_mode == 4:
-            wait_for_datasent = False
-
+        wait_for_datasent = addr != 0x0000 and addr_mode != 4
         data = t.serialize([addr_mode, addr,
                            src_ep, dst_ep, cluster, profile,
                            security, radius, payload], COMMANDS[0x0530])
