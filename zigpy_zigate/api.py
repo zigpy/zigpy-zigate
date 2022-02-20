@@ -41,10 +41,12 @@ class CommandId(enum.IntEnum):
 class ResponseId(enum.IntEnum):
     DEVICE_ANNOUNCE = 0x004D
     STATUS = 0x8000
+    LOG_MESSAGE = 0x8001
     DATA_INDICATION = 0x8002
     PDM_LOADED = 0x0302
     NODE_NON_FACTORY_NEW_RESTART = 0x8006
     NODE_FACTORY_NEW_RESTART = 0x8007
+    HEARTBEAT = 0x8008
     NETWORK_STATE_RSP = 0x8009
     VERSION_LIST = 0x8010
     ACK_DATA = 0x8011
@@ -72,6 +74,7 @@ RESPONSES = {
         t.Address,
         t.Bytes,
     ),
+    ResponseId.LOG_MESSAGE:  (t.Bytes,),
     ResponseId.PDM_LOADED: (t.uint8_t,),
     ResponseId.NODE_NON_FACTORY_NEW_RESTART: (t.uint8_t,),
     ResponseId.NODE_FACTORY_NEW_RESTART: (t.uint8_t,),
@@ -83,6 +86,7 @@ RESPONSES = {
         t.uint8_t,
         t.uint8_t,
         t.Address,
+        t.uint8_t,
         t.uint8_t,
     ),
     ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
@@ -100,9 +104,8 @@ RESPONSES = {
     ),
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
     ResponseId.ZCL_EVENT: (t.uint8_t,),
-    0x8008: (t.uint32_t,), # Hearbeat : every minute sent by Zigate
-    0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
-    0x9999: (t.uint8_t,),
+    ResponseId.HEARTBEAT: (t.uint32_t,), # Heartbeat : every minute sent by Zigate
+
 }
 
 COMMANDS = {
