@@ -7,6 +7,8 @@ import zigpy.config
 import zigpy.device
 import zigpy.types
 import zigpy.util
+import zigpy.zdo
+import zigpy.exceptions
 
 from zigpy_zigate import types as t
 from zigpy_zigate import common as c
@@ -31,76 +33,91 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._pending = {}
         self._pending_join = []
 
-        self._nwk = 0
-        self._ieee = 0
         self.version = ''
 
-    async def startup(self, auto_form=False,force_form=False):
-        """Perform a complete application startup"""
-        self._api = await ZiGate.new(self._config[CONF_DEVICE], self)
-        await self._api.set_raw_mode()
-        await self._api.set_time()
-        version, lqi = await self._api.version()
-        version = '{:x}'.format(version[1])
-        version = '{}.{}'.format(version[0], version[1:])
-        self.version = version
-        if version < '3.21':
+    async def connect(self):
+        api = await ZiGate.new(self._config[CONF_DEVICE], self)
+        await api.set_raw_mode()
+        await api.set_time()
+        version, lqi = await api.version()
+
+        hex_version = f"{version[1]:x}"
+        self.version = f"{hex_version[0]}.{hex_version[1:]}"
+        self._api = api
+
+        if self.version < '3.21':
             LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
 
-        network_state, lqi = await self._api.get_network_state()
-        should_form = not network_state or network_state[0] == 0xffff or network_state[3] == 0
+    async def disconnect(self):
+        # TODO: how do you stop the network? Is it possible?
+        await self._api.reset()
 
-        if auto_form and (should_form or force_form):
-            await self.form_network()
-        if should_form:
-            network_state, lqi = await self._api.get_network_state()
-        self._nwk = network_state[0]
-        self._ieee = zigpy.types.EUI64(network_state[1])
-
-        dev = ZiGateDevice(self, self._ieee, self._nwk)
-        #await dev.schedule_initialize() // it blocks zigate for the moment
-        self.devices[dev.ieee] = dev
-        self._udpate_network_info(network_state)
-
-    async def shutdown(self):
-        """Shutdown application."""
         if self._api:
             self._api.close()
+            self._api = None
 
-    async def form_network(self, channel=None, pan_id=None):
-        await self._api.set_channel(channel)
-        if pan_id:
-            LOGGER.warning('Setting pan_id is not supported by ZiGate')
-#             self._api.set_panid(pan_id)
-        extended_pan_id = self.config[CONF_NWK][CONF_NWK_EXTENDED_PAN_ID]
+    async def start_network(self):
+        # TODO: how do you start the network? Is it always automatically started?
+        dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
+        self.devices[dev.ieee] = dev
 
-        if extended_pan_id is None:
-            await self._api.set_extended_panid(extended_pan_id)
+    async def load_network_info(self):
+        network_state, lqi = await self._api.get_network_state()
+
+        if not network_state or network_state[3] == 0 or network_state[0] == 0xffff:
+            raise zigpy.exceptions.NetworkNotFormed()
+
+        epid, _ = zigpy.types.ExtendedPanId.deserialize(zigpy.types.uint64_t(network_state[3]).serialize())
+
+        self.state.network_info = zigpy.state.NetworkInfo(
+            extended_pan_id=epid,
+            pan_id=zigpy.types.PanId(network_state[2]),
+            nwk_update_id=None,
+            nwk_manager_id=0x0000,
+            channel=network_state[4],
+            channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
+            security_level=5,
+            network_key=None,  # TODO: is it possible to read the network key?
+            tc_link_key=None,
+            children=[],
+            key_table=[],
+            nwk_addresses={},
+            stack_specific=None,
+        )
+
+        eui64, _ = zigpy.types.EUI64.deserialize(zigpy.types.uint64_t(network_state[1]).serialize())
+
+        self.state.node_info = zigpy.state.NodeInfo(
+            nwk=zigpy.types.NWK(network_state[0]),
+            ieee=eui64,
+            logical_type=zigpy.zdo.types.LogicalType.Coordinator,
+        )
+
+    async def write_network_info(self, *, network_info, node_info):
+        LOGGER.warning('Setting the pan_id is not supported by ZiGate')
+
+        await self._api.set_channel(network_info.channel)
+        await self._api.set_extended_panid(network_info.extended_pan_id)
 
         network_formed, lqi = await self._api.start_network()
         if network_formed[0] in (0, 1, 4):
-            LOGGER.info('Network started %s %s',
-                        network_formed[1],
-                        network_formed[2])
-            self._nwk = network_formed[1]
-            self._ieee = network_formed[2]
-        else:
-            LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
-            tries = 3
-            while tries > 0:
-                await asyncio.sleep(1)
-                tries -= 1
-                network_state, lqi = await self._api.get_network_state()
-                self._udpate_network_info(network_state)
-                if network_state and network_state[3] != 0 and network_state[0] != 0xffff:
-                    break
-            if tries <= 0:
-                LOGGER.error('Failed to start network error %s', network_formed[0])
-                LOGGER.debug('Resetting ZiGate')
-                await self._api.reset()
+            return
+
+        LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
+        for attempt in range(3):
+            await asyncio.sleep(1)
+
+            try:
+                await self.load_network_info()
+            except zigpy.exceptions.NetworkNotFormed as e:
+                if attempt == 2:
+                    raise zigpy.exceptions.FormationFailure() from e
+
+    async def permit_with_key(self, node, code, time_s = 60):
+        LOGGER.warning("ZiGate does not support joins with install codes")
 
     async def force_remove(self, dev):
-        await self._api.remove_device(self._ieee, dev.ieee)
+        await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
     async def load_network_info(self, *, load_devices=False) -> None:
         network_state, lqi = await self._api.get_network_state()
@@ -172,6 +189,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
             # self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x8012:  # ZPS Event
+            LOGGER.debug('ZPS Event APS data confirm, message routed to %s %s', response[3], response[0])
         elif msg == 0x8035:  # PDM Event
             try:
                 event = PDM_EVENT(response[0]).name
@@ -181,6 +200,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == 0x8702:  # APS Data confirm Fail
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
+        elif msg == 0x9999:  # ZCL event
+            LOGGER.warning('Extended error code %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
         try:
