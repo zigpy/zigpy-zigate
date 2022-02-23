@@ -59,7 +59,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
         self.devices[dev.ieee] = dev
 
-    async def load_network_info(self):
+    async def load_network_info(self, *, load_devices: bool = False):
         network_state, lqi = await self._api.get_network_state()
 
         if not network_state or network_state[3] == 0 or network_state[0] == 0xffff:
