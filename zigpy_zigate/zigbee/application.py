@@ -62,21 +62,19 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self.devices[dev.ieee] = dev
 
 
-    async def load_network_info(self):
+    async def load_network_info(self, *, load_devices: bool = False):
         network_state, lqi = await self._api.get_network_state()
 
         if not network_state or network_state[3] == 0 or network_state[0] == 0xffff:
             raise zigpy.exceptions.NetworkNotFormed()
 
-        epid, _ = zigpy.types.ExtendedPanId.deserialize(zigpy.types.uint64_t(network_state[3]).serialize())
-
         self.state.network_info = zigpy.state.NetworkInfo(
-            extended_pan_id=epid,
-            pan_id=zigpy.types.PanId(network_state[2]),
+            extended_pan_id=zigpy.types.ExtendedPanId(network_state[3]),
+            pan_id=network_state[2],
             nwk_update_id=None,
             nwk_manager_id=0x0000,
             channel=network_state[4],
-            channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
+            channel_mask=None,
             security_level=5,
             network_key=None,  # TODO: is it possible to read the network key?
             tc_link_key=None,
@@ -85,13 +83,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             nwk_addresses={},
             stack_specific=None,
         )
-
-        eui64, _ = zigpy.types.EUI64.deserialize(zigpy.types.uint64_t(network_state[1]).serialize())
-
-        self.state.node_info = zigpy.state.NodeInfo(
-            nwk=zigpy.types.NWK(network_state[0]),
-            ieee=eui64,
-            logical_type=zigpy.zdo.types.LogicalType.Coordinator,
+        
+        self.state.node_info = zigpy.state.NodeInfo (
+            nwk = zigpy.types.NWK(network_state[0]),
+            ieee = zigpy.types.EUI64(network_state[1]),
+            logical_type = None
         )
 
     async def write_network_info(self, *, network_info, node_info):
@@ -121,9 +117,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def force_remove(self, dev):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
-    async def load_network_info(self, *, load_devices=False) -> None:
-        network_state, lqi = await self._api.get_network_state()
-        self._udpate_network_info(network_state)
 
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
@@ -271,29 +264,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != 0:
             await self._api.reset()
-
-
-    def _udpate_network_info (self,network_state):
-        self.state.network_info = zigpy.state.NetworkInfo(
-            extended_pan_id=zigpy.types.ExtendedPanId(network_state[3]),
-            pan_id=network_state[2],
-            nwk_update_id=None,
-            nwk_manager_id=0x0000,
-            channel=network_state[4],
-            channel_mask=None,
-            security_level=5,
-            network_key=None,
-            tc_link_key=None,
-            children=[],
-            key_table=[],
-            nwk_addresses={},
-            stack_specific=None,
-        )
-        self.state.node_info = zigpy.state.NodeInfo (
-            nwk = zigpy.types.NWK(network_state[0]),
-            ieee = zigpy.types.EUI64(network_state[1]),
-            logical_type = None
-        )
 
 
 class ZiGateDevice(zigpy.device.Device):
