@@ -42,7 +42,7 @@ class ResponseId(enum.IntEnum):
     DEVICE_ANNOUNCE = 0x004D
     CONTROLLER_HEARTBEAT = 0x8008
     STATUS = 0x8000
-    CONTROLLER_LOG = 0x8001
+    LOG_MESSAGE = 0x8001
     DATA_INDICATION = 0x8002
     PDM_LOADED = 0x0302
     NODE_NON_FACTORY_NEW_RESTART = 0x8006
@@ -58,53 +58,53 @@ class ResponseId(enum.IntEnum):
     ROUTE_DISCOVERY_CONFIRM = 0x8701
     APS_DATA_CONFIRM_FAILED = 0x8702
     AHI_SET_TX_POWER_RSP = 0x8806
-    CONTROLLER_EXTENDED_ERROR = 0x9999
+    ZCL_EVENT = 0x9999
 
 
 RESPONSES = {
-    # 0x004D: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
     ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
-    # 0x8008: (t.uint32_t,), # Hearbeat : every minute sent by Zigate
     ResponseId.CONTROLLER_HEARTBEAT: ( t.uint32_t, ),
-    # 0x8000: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
     ResponseId.STATUS: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
-    # 0x8002: (t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Address, t.Address, t.Bytes),
-    ResponseId.DATA_INDICATION: ( t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Address, t.Address, t.Bytes, ),
-    # 0x8001: (t.Bytes,),
-    ResponseId.CONTROLLER_LOG: (t.Bytes, ),
-    # 0x0302: (t.uint8_t,),
+    ResponseId.DATA_INDICATION: (
+        t.uint8_t,
+        t.uint16_t,
+        t.uint16_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.Address,
+        t.Address,
+        t.Bytes,
+    ),
+    ResponseId.LOG_MESSAGE:  (t.Bytes,),
     ResponseId.PDM_LOADED: (t.uint8_t,),
     ResponseId.NODE_NON_FACTORY_NEW_RESTART: (t.uint8_t,),
     ResponseId.NODE_FACTORY_NEW_RESTART: (t.uint8_t,),
-    ResponseId.NETWORK_STATE_RSP: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
+    ResponseId.NETWORK_STATE_RSP: (t.NWK, t.EUI64, t.uint16_t, t.EUI64, t.uint8_t),
     ResponseId.VERSION_LIST: (t.uint16_t, t.uint16_t),
-    # 0x8011: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
     ResponseId.ACK_DATA: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
-    # 0x8012: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # DATA confirmed
-    ResponseId.APS_DATA_CONFIRM: ( t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t ),
+    ResponseId.APS_DATA_CONFIRM: (
+        t.uint8_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.Address,
+        t.uint8_t,
+        t.uint8_t,
+    ),
     ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
     ResponseId.NETWORK_JOINED_FORMED: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     ResponseId.PDM_EVENT: (t.uint8_t, t.uint32_t),
     ResponseId.LEAVE_INDICATION: (t.EUI64, t.uint8_t),
-    # 0x8701: (t.uint8_t, t.uint8_t),
     ResponseId.ROUTE_DISCOVERY_CONFIRM: (t.uint8_t, t.uint8_t),
-    # 0x8702: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t), # Data not confirmed
-    ResponseId.APS_DATA_CONFIRM_FAILED: (t.uint8_t, t.uint8_t, t.uint8_t, t.Address, t.uint8_t, t.uint8_t ),
-    # 0x8806: (t.uint8_t,),
+    ResponseId.APS_DATA_CONFIRM_FAILED: (
+        t.uint8_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.Address,
+        t.uint8_t,
+        t.uint8_t,
+    ),
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
-    # 0x9999: (t.uint8_t,),
-    ResponseId.CONTROLLER_EXTENDED_ERROR: (t.uint8_t,),
-
-    # 0x8006: (t.uint8_t,),
-    # 0x8007: (t.uint8_t,),
-    # 0x8009: (t.NWK, t.EUI64, t.uint16_t, t.EUI64, t.uint8_t),
-    # 0x8010: (t.uint16_t, t.uint16_t),
-    # 0x8017: (t.uint32_t,),
-    # 0x8024: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
-    # 0x8035: (t.uint8_t, t.uint32_t),
-    # 0x8048: (t.EUI64, t.uint8_t),
-    
-
+    ResponseId.ZCL_EVENT: (t.uint8_t,),
 }
 
 COMMANDS = {
@@ -116,8 +116,25 @@ COMMANDS = {
     CommandId.SET_CHANNELMASK: (t.uint32_t,),
     CommandId.NETWORK_REMOVE_DEVICE: (t.EUI64, t.EUI64),
     CommandId.PERMIT_JOINING_REQUEST: (t.NWK, t.uint8_t, t.uint8_t),
-    CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST: ( t.NWK, t.uint32_t, t.uint8_t, t.uint8_t, t.uint8_t, t.uint16_t, ),
-    CommandId.SEND_RAW_APS_DATA_PACKET: ( t.uint8_t, t.NWK, t.uint8_t, t.uint8_t, t.uint16_t, t.uint16_t, t.uint8_t, t.uint8_t, t.LBytes, ),
+    CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST: (
+        t.NWK,
+        t.uint32_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.uint16_t,
+    ),
+    CommandId.SEND_RAW_APS_DATA_PACKET: (
+        t.uint8_t,
+        t.NWK,
+        t.uint8_t,
+        t.uint8_t,
+        t.uint16_t,
+        t.uint16_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.LBytes,
+    ),
     CommandId.AHI_SET_TX_POWER: (t.uint8_t,),
 }
 
