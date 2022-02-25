@@ -40,13 +40,13 @@ class CommandId(enum.IntEnum):
 
 class ResponseId(enum.IntEnum):
     DEVICE_ANNOUNCE = 0x004D
+    CONTROLLER_HEARTBEAT = 0x8008
     STATUS = 0x8000
-    LOG_MESSAGE = 0x8001
+    CONTROLLER_LOG = 0x8001
     DATA_INDICATION = 0x8002
     PDM_LOADED = 0x0302
     NODE_NON_FACTORY_NEW_RESTART = 0x8006
     NODE_FACTORY_NEW_RESTART = 0x8007
-    HEARTBEAT = 0x8008
     NETWORK_STATE_RSP = 0x8009
     VERSION_LIST = 0x8010
     ACK_DATA = 0x8011
@@ -63,6 +63,7 @@ class ResponseId(enum.IntEnum):
 
 RESPONSES = {
     ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
+    ResponseId.CONTROLLER_HEARTBEAT: ( t.uint32_t, ),
     ResponseId.STATUS: (t.uint8_t, t.uint8_t, t.uint16_t, t.uint8_t, t.uint8_t, t.Bytes),
     ResponseId.DATA_INDICATION: (
         t.uint8_t,
@@ -104,8 +105,6 @@ RESPONSES = {
     ),
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
     ResponseId.ZCL_EVENT: (t.uint8_t,),
-    ResponseId.HEARTBEAT: (t.uint32_t,), # Heartbeat : every minute sent by Zigate
-
 }
 
 COMMANDS = {
@@ -269,9 +268,7 @@ class ZiGate:
             status = data[0]
             cmd_called = data[2]
             sqn_exist = data[3]
-            sqn_aps = None
-            if sqn_exist != 0 :
-                sqn_aps = data[4]
+            sqn_aps = data[4] if sqn_exist != 0 else None
             LOGGER.debug("data_received : status received %s status:0x%02x cmd:0x%04x sqn:%s", hex(cmd),status ,cmd_called ,sqn_aps)
             if cmd_called in self._status_awaiting:
                 fut = self._status_awaiting.pop(cmd_called)
@@ -279,7 +276,7 @@ class ZiGate:
                     self._status_datasent_awaiting[sqn_aps] = asyncio.Future()
                     self._status_ack_awaiting[sqn_aps] = asyncio.Future()
                 fut.set_result((data, lqi))
-        if cmd == 0x8012 or cmd == 0x8702:
+        if cmd in [0x8012, 0x8702]:
             LOGGER.debug("data_received : data confirm received %s sqn:%s ", hex(cmd),  data[4])
             if data[4] in self._status_datasent_awaiting: #looking for APS SQN
                 fut = self._status_datasent_awaiting[data[4]]
@@ -301,7 +298,7 @@ class ZiGate:
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True,wait_for_datasent= False ,wait_for_ack=False ,timeout=COMMAND_TIMEOUT):
         LOGGER.debug('command :cmd=0x%04x  wait_status=%s wait_for_datasent=%s wait_for_ack=%s', 
                                 cmd, wait_status, wait_for_datasent,wait_for_ack)
-        
+
         await self._lock.acquire()
         tries = 1
         result = None
@@ -410,7 +407,7 @@ class ZiGate:
                     else:
                         self._lock.release()
                         raise NoResponseError
-        if status == 0xa3 or status == 0xa6 or status == 0xc2:
+        if status in [0xA3, 0xA6, 0xC2]:
             LOGGER.error("command : error status cmd:%s error:%d", hex(cmd), status)
             #wait got 9999 if status  0xA3 0xA6 0xC2
         LOGGER.debug("command : end command cmd:0x%04x result:%s", cmd, result)
@@ -457,8 +454,7 @@ class ZiGate:
 
     async def get_time_server(self):
         timestamp, lqi = await self.command(0x0017, wait_response=0x8017)
-        dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
-        return dt
+        return datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
 
     async def set_led(self, enable=True):
         data = t.serialize([enable], COMMANDS[0x0018])
@@ -477,10 +473,8 @@ class ZiGate:
         await self.version_str ()
         if self.zigate_version == 5: # zigatev2 has no tx power function
             return
-        if power > 63:
-            power = 63
-        if power < 0:
-            power = 0
+        power = min(power, 63)
+        power = max(power, 0)
         data = t.serialize([power], COMMANDS[0x0806])
         power, lqi = await self.command(0x0806, data, wait_response=0x8806)
         return power[0]
@@ -522,10 +516,7 @@ class ZiGate:
                 addr_mode = 8
 
         radius = 0
-        wait_for_datasent = True
-        if addr == 0x0000 or addr_mode == 4:
-            wait_for_datasent = False
-
+        wait_for_datasent = addr != 0x0000 and addr_mode != 4
         data = t.serialize([addr_mode, addr,
                            src_ep, dst_ep, cluster, profile,
                            security, radius, payload], COMMANDS[0x0530])

@@ -51,7 +51,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
         await self._api.reset()
-
+        
         if self._api:
             self._api.close()
             self._api = None
@@ -60,6 +60,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         # TODO: how do you start the network? Is it always automatically started?
         dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
         self.devices[dev.ieee] = dev
+
 
     async def load_network_info(self):
         network_state, lqi = await self._api.get_network_state()
@@ -115,6 +116,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def permit_with_key(self, node, code, time_s = 60):
         LOGGER.warning("ZiGate does not support joins with install codes")
+
 
     async def force_remove(self, dev):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
