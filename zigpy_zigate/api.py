@@ -285,62 +285,95 @@ class ZiGate:
             fut.set_result((data, lqi))
         self.handle_callback(cmd, data, lqi)
 
+    async def wait_for_status(self, cmd):
+        LOGGER.debug('Wait for status to command %s', cmd)
+
+        if cmd in self._status_awaiting:
+            self._status_awaiting[cmd].cancel()
+
+        status_fut = asyncio.Future()
+        self._status_awaiting[cmd] = status_fut
+
+        try:
+            return await status_fut
+        finally:
+            if cmd in self._status_awaiting:
+                self._status_awaiting[cmd].cancel()
+                del self._status_awaiting[cmd]
+
+    async def wait_for_response(self, wait_response):
+        LOGGER.debug('Wait for response %s', wait_response)
+
+        if wait_response in self._awaiting:
+            self._awaiting[wait_response].cancel()
+
+        response_fut = asyncio.Future()
+        self._awaiting[wait_response] = response_fut
+
+        try:
+            return await response_fut
+        finally:
+            if wait_response in self._awaiting:
+                self._awaiting[wait_response].cancel()
+                del self._awaiting[wait_response]
+
     async def command(self, cmd, data=b'', wait_response=None, wait_status=True, timeout=COMMAND_TIMEOUT):
-        
-        await self._lock.acquire()
-        tries = 3
-        result = None
-        status_fut = None
-        response_fut = None
-        while tries > 0:
-            if self._uart is None:
-            # connection was lost
-                self._lock.release()
-                raise CommandError("API is not running")
+        async with self._lock:
+            tries = 3
+
+            tasks = []
+            status_task = None
+            response_task = None
+
+            LOGGER.debug(
+                "Sending %s (%s), waiting for status: %s, waiting for response: %s",
+                cmd,
+                data,
+                wait_status,
+                wait_response,
+            )
+
             if wait_status:
-                status_fut = asyncio.Future()
-                self._status_awaiting[cmd] = status_fut
-            if wait_response:
-                response_fut = asyncio.Future()
-                self._awaiting[wait_response] = response_fut
-            tries -= 1
-            self._uart.send(cmd, data)
-            if wait_status:
-                LOGGER.debug('Wait for status to command %s', cmd)
-                try:
-                    result = await asyncio.wait_for(status_fut, timeout=timeout)
-                    LOGGER.debug('Got status for %s : %s', cmd, result)
-                except asyncio.TimeoutError:
-                    if cmd in self._status_awaiting:
-                        del self._status_awaiting[cmd]
-                    if response_fut and wait_response in self._awaiting:
-                        del self._awaiting[wait_response]
-                    LOGGER.warning("No response to command %s", cmd)
-                    LOGGER.debug('Tries count %s', tries)
-                    if tries > 0:
-                        LOGGER.warning("Retry command %s", cmd)
-                        continue
-                    else:
-                        self._lock.release()
-                        raise NoStatusError
-            if wait_response:
-                LOGGER.debug('Wait for response %s', wait_response)
-                try:
-                    result = await asyncio.wait_for(response_fut, timeout=timeout)
-                    LOGGER.debug('Got response %s : %s', wait_response, result)
-                except asyncio.TimeoutError:
-                    if wait_response in self._awaiting:
-                        del self._awaiting[wait_response]
-                    LOGGER.warning("No response waiting for %s", wait_response)
-                    LOGGER.debug('Tries count %s', tries)
-                    if tries > 0:
-                        LOGGER.warning("Retry command %s", cmd)
-                        continue
-                    else:
-                        self._lock.release()
-                        raise NoResponseError
-        self._lock.release()
-        return result
+                status_task = asyncio.create_task(self.wait_for_status(cmd))
+                tasks.append(status_task)
+
+            if wait_response is not None:
+                response_task = asyncio.create_task(self.wait_for_response(wait_response))
+                tasks.append(response_task)
+
+            try:
+                while tries > 0:
+                    if self._uart is None:
+                        # connection was lost
+                        raise CommandError("API is not running")
+
+                    tries -= 1
+                    self._uart.send(cmd, data)
+
+                    done, pending = await asyncio.wait(tasks, timeout=timeout)
+
+                    if wait_status and tries == 0 and status_task in pending:
+                        raise NoStatusError()
+                    elif wait_response and tries == 0 and response_task in pending:
+                        raise NoResponseError()
+
+                    if wait_response and response_task in done:
+                        if wait_status and status_task in pending:
+                            continue
+                        elif wait_status:
+                            await status_task
+
+                        return await response_task
+                    elif wait_status and status_task in done:
+                        return await status_task
+                    elif not wait_response and not wait_status:
+                        return
+            finally:
+                for t in tasks:
+                    if not t.done():
+                        t.cancel()
+
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     async def version(self):
         return await self.command(CommandId.GET_VERSION, wait_response=ResponseId.VERSION_LIST)
