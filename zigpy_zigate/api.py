@@ -48,10 +48,12 @@ class ResponseId(enum.IntEnum):
     PDM_LOADED = 0x0302
     NODE_NON_FACTORY_NEW_RESTART = 0x8006
     NODE_FACTORY_NEW_RESTART = 0x8007
+    HEART_BEAT = 0x8008
     NETWORK_STATE_RSP = 0x8009
     VERSION_LIST = 0x8010
     ACK_DATA = 0x8011
     APS_DATA_CONFIRM = 0x8012
+    PERMIT_JOIN_RSP = 0x8014
     GET_TIMESERVER_LIST = 0x8017
     NETWORK_JOINED_FORMED = 0x8024
     PDM_EVENT = 0x8035
@@ -59,15 +61,28 @@ class ResponseId(enum.IntEnum):
     ROUTE_DISCOVERY_CONFIRM = 0x8701
     APS_DATA_CONFIRM_FAILED = 0x8702
     AHI_SET_TX_POWER_RSP = 0x8806
-    ZCL_EVENT = 0x9999
+    EXTENDED_ERROR = 0x9999
+
+
+
+
+class NonFactoryNewRestartStatus(t.uint8_t, enum.Enum):
+    Startup = 0
+    Running = 1
+    Start = 2
+
+class FactoryNewRestartStatus(t.uint8_t, enum.Enum):
+    Startup = 0
+    Start = 2
+    Running = 6
 
 
 RESPONSES = {
     ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
-    ResponseId.STATUS: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
+    ResponseId.STATUS: (t.Status, t.uint8_t, t.uint16_t, t.Bytes),
     ResponseId.LOG: (t.LogLevel, t.Bytes),
     ResponseId.DATA_INDICATION: (
-        t.uint8_t,
+        t.Status,
         t.uint16_t,
         t.uint16_t,
         t.uint8_t,
@@ -77,32 +92,34 @@ RESPONSES = {
         t.Bytes,
     ),
     ResponseId.PDM_LOADED: (t.uint8_t,),
-    ResponseId.NODE_NON_FACTORY_NEW_RESTART: (t.uint8_t,),
-    ResponseId.NODE_FACTORY_NEW_RESTART: (t.uint8_t,),
+    ResponseId.NODE_NON_FACTORY_NEW_RESTART: (NonFactoryNewRestartStatus,),
+    ResponseId.NODE_FACTORY_NEW_RESTART: (FactoryNewRestartStatus,),
+    ResponseId.HEART_BEAT: (t.uint32_t,),
     ResponseId.NETWORK_STATE_RSP: (t.NWK, t.EUI64, t.uint16_t, t.uint64_t, t.uint8_t),
     ResponseId.VERSION_LIST: (t.uint16_t, t.uint16_t),
-    ResponseId.ACK_DATA: (t.uint8_t, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
+    ResponseId.ACK_DATA: (t.Status, t.NWK, t.uint8_t, t.uint16_t, t.uint8_t),
     ResponseId.APS_DATA_CONFIRM: (
-        t.uint8_t,
+        t.Status,
         t.uint8_t,
         t.uint8_t,
         t.Address,
         t.uint8_t,
     ),
+    ResponseId.PERMIT_JOIN_RSP: (t.uint8_t,),
     ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
     ResponseId.NETWORK_JOINED_FORMED: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
-    ResponseId.PDM_EVENT: (t.uint8_t, t.uint32_t),
+    ResponseId.PDM_EVENT: (t.Status, t.uint32_t),
     ResponseId.LEAVE_INDICATION: (t.EUI64, t.uint8_t),
     ResponseId.ROUTE_DISCOVERY_CONFIRM: (t.uint8_t, t.uint8_t),
     ResponseId.APS_DATA_CONFIRM_FAILED: (
-        t.uint8_t,
+        t.Status,
         t.uint8_t,
         t.uint8_t,
         t.Address,
         t.uint8_t,
     ),
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
-    ResponseId.ZCL_EVENT: (t.uint8_t,),
+    ResponseId.EXTENDED_ERROR: (t.Status,),
 }
 
 COMMANDS = {
@@ -142,23 +159,23 @@ class AutoEnum(enum.IntEnum):
         return count
 
 
-class PDM_EVENT(AutoEnum):
-    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = enum.auto()
-    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = enum.auto()
-    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = enum.auto()
-    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = enum.auto()
-    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = enum.auto()
-    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = enum.auto()
+class PDM_EVENT(enum.IntEnum):
+    E_PDM_SYSTEM_EVENT_WEAR_COUNT_TRIGGER_VALUE_REACHED = 0
+    E_PDM_SYSTEM_EVENT_DESCRIPTOR_SAVE_FAILED = 1
+    E_PDM_SYSTEM_EVENT_PDM_NOT_ENOUGH_SPACE = 2
+    E_PDM_SYSTEM_EVENT_LARGEST_RECORD_FULL_SAVE_NO_LONGER_POSSIBLE = 3
+    E_PDM_SYSTEM_EVENT_SEGMENT_DATA_CHECKSUM_FAIL = 4
+    E_PDM_SYSTEM_EVENT_SEGMENT_SAVE_OK = 5
+    E_PDM_SYSTEM_EVENT_EEPROM_SEGMENT_HEADER_REPAIRED = 6
+    E_PDM_SYSTEM_EVENT_SYSTEM_INTERNAL_BUFFER_WEAR_COUNT_SWAP = 7
+    E_PDM_SYSTEM_EVENT_SYSTEM_DUPLICATE_FILE_SEGMENT_DETECTED = 8
+    E_PDM_SYSTEM_EVENT_SYSTEM_ERROR = 9
+    E_PDM_SYSTEM_EVENT_SEGMENT_PREWRITE = 10
+    E_PDM_SYSTEM_EVENT_SEGMENT_POSTWRITE = 11
+    E_PDM_SYSTEM_EVENT_SEQUENCE_DUPLICATE_DETECTED = 12
+    E_PDM_SYSTEM_EVENT_SEQUENCE_VERIFY_FAIL = 13
+    E_PDM_SYSTEM_EVENT_PDM_SMART_SAVE = 14
+    E_PDM_SYSTEM_EVENT_PDM_FULL_SAVE = 15
 
 
 class NoResponseError(zigpy.exceptions.APIException):
@@ -257,6 +274,7 @@ class ZiGate:
         if cmd not in RESPONSES:
             LOGGER.warning('Received unhandled response 0x%04x', cmd)
             return
+        cmd = ResponseId(cmd)
         data, rest = t.deserialize(data, RESPONSES[cmd])
         if cmd == ResponseId.STATUS:
             if data[2] in self._status_awaiting:

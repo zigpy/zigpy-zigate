@@ -149,6 +149,65 @@ class ADDRESS_MODE(uint8_t, enum.Enum):
     IEEE = 0x03
 
 
+class Status(uint8_t, enum.Enum):
+    Success = 0x00
+    IncorrectParams = 0x01
+    UnhandledCommand = 0x02
+    CommandFailed = 0x03
+    Busy = 0x04
+    StackAlreadyStarted = 0x05
+
+    # Errors below are due to resource shortage, retrying may succeed OR There are no
+    # free Network PDUs. The number of NPDUs is set in the “Number of NPDUs” property
+    # of the “PDU Manager” section of the config editor
+    ResourceShortage = 0x80
+    # There are no free Application PDUs. The number of APDUs is set in the “Instances”
+    # property of the appropriate “APDU” child of the “PDU Manager” section of the
+    # config editor
+    NoFreeAppPDUs = 0x81
+    # There are no free simultaneous data request handles. The number of handles is set
+    # in the “Maximum Number of Simultaneous Data Requests” field of the “APS layer
+    # configuration” section of the config editor
+    NoFreeDataReqHandles = 0x82
+    # There are no free APS acknowledgement handles. The number of handles is set in
+    # the “Maximum Number of Simultaneous Data Requests with Acks” field of the “APS
+    # layer configuration” section of the config editor
+    NoFreeAPSAckHandles = 0x83
+    # There are no free fragment record handles. The number of handles is set in
+    # the “Maximum Number of Transmitted Simultaneous Fragmented Messages” field of
+    # the “APS layer configuration” section of the config editor
+    NoFreeFragRecHandles = 0x84
+    # There are no free MCPS request descriptors. There are 8 MCPS request descriptors.
+    # These are only ever likely to be exhausted under very heavy network load or when
+    # trying to transmit too many frames too close together.
+    NoFreeMCPSReqDesc = 0x85
+    # The loop back send is currently busy. There can be only one loopback request at a
+    # time.
+    LoopbackSendBusy = 0x86
+    # There are no free entries in the extended address table. The extended address
+    # table is configured in the config editor
+    NoFreeExtAddrTableEntries = 0x87
+    # The simple descriptor does not exist for this endpoint / cluster.
+    SimpleDescDoesNotExist = 0x88
+    # A bad parameter has been found while processing an APSDE request or response
+    BadAPSDEParam = 0x89
+    # No free Routing table entries left
+    NoFreeRoutingTableEntries = 0x8A
+    # No free BTR entries left.
+    NoFreeBTREntries = 0x8B
+
+    @classmethod
+    def _missing_(cls, value):
+        if not isinstance(value, int):
+            raise ValueError(f"{value} is not a valid {cls.__name__}")
+
+        new_member = cls._member_type_.__new__(cls, value)
+        new_member._name_ = f"unknown_0x{value:02X}"
+        new_member._value_ = cls._member_type_(value)
+
+        return new_member
+
+
 class LogLevel(uint8_t, enum.Enum):
     Emergency = 0
     Alert = 1

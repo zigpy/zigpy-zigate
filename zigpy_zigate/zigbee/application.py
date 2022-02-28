@@ -98,8 +98,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.set_extended_panid(network_info.extended_pan_id)
 
         network_formed, lqi = await self._api.start_network()
-        if network_formed[0] in (0, 1, 4):
-            return
+        assert network_formed[0] in (
+            t.Status.Success,
+            t.Status.IncorrectParams,
+            t.Status.Busy,
+        )
 
         LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
         for attempt in range(3):
@@ -118,7 +121,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
     def zigate_callback_handler(self, msg, response, lqi):
-        LOGGER.debug('zigate_callback_handler {}'.format(response))
+        LOGGER.debug('zigate_callback_handler %s %s', msg, response)
 
         if msg == ResponseId.LEAVE_INDICATION:
             nwk = 0
@@ -177,7 +180,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == ResponseId.APS_DATA_CONFIRM_FAILED:
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
-        elif msg == ResponseId.ZCL_EVENT:
+        elif msg == ResponseId.EXTENDED_ERROR:
             LOGGER.warning('Extended error code %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
@@ -212,7 +215,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         send_fut = asyncio.Future()
         self._pending[req_id] = send_fut
 
-        if v[0] != 0:
+        if v[0] != t.Status.Success:
             self._pending.pop(req_id)
             return v[0], "Message send failure {}".format(v[0])
 
@@ -229,7 +232,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
         status, lqi = await self._api.permit_join(time_s)
-        if status[0] != 0:
+        if status[0] != t.Status.Success:
             await self._api.reset()
 
     async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
