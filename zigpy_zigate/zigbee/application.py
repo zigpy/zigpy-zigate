@@ -48,7 +48,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
-        await self._api.reset()
+        await self._api.reset(wait=False)
 
         if self._api:
             self._api.close()
@@ -83,19 +83,21 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             stack_specific=None,
         )
 
-        eui64, _ = zigpy.types.EUI64.deserialize(zigpy.types.uint64_t(network_state[1]).serialize())
-
         self.state.node_info = zigpy.state.NodeInfo(
             nwk=zigpy.types.NWK(network_state[0]),
-            ieee=eui64,
+            ieee=zigpy.types.EUI64(network_state[1]),
             logical_type=zigpy.zdo.types.LogicalType.Coordinator,
         )
 
     async def write_network_info(self, *, network_info, node_info):
         LOGGER.warning('Setting the pan_id is not supported by ZiGate')
 
+        await self._api.erase_persistent_data()
+
         await self._api.set_channel(network_info.channel)
-        await self._api.set_extended_panid(network_info.extended_pan_id)
+
+        epid, _ = zigpy.types.uint64_t.deserialize(network_info.extended_pan_id.serialize())
+        await self._api.set_extended_panid(epid)
 
         network_formed, lqi = await self._api.start_network()
         assert network_formed[0] in (

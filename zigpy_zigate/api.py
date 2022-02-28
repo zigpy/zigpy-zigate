@@ -358,11 +358,14 @@ class ZiGate:
         data = t.serialize([enable], COMMANDS[CommandId.SET_RAWMODE])
         await self.command(CommandId.SET_RAWMODE, data)
 
-    async def reset(self):
-        await self.command(CommandId.RESET, wait_response=ResponseId.NODE_NON_FACTORY_NEW_RESTART)
+    async def reset(self, *, wait=True):
+        wait_response = ResponseId.NODE_NON_FACTORY_NEW_RESTART if wait else None
+        await self.command(CommandId.RESET, wait_response=wait_response)
 
     async def erase_persistent_data(self):
-        await self.command(CommandId.ERASE_PERSISTENT_DATA, wait_status=False)
+        await self.command(CommandId.ERASE_PERSISTENT_DATA, wait_status=False, wait_response=ResponseId.PDM_LOADED, timeout=10)
+        await asyncio.sleep(1)
+        await self.command(CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART)
 
     async def set_time(self, dt=None):
         """ set internal time
