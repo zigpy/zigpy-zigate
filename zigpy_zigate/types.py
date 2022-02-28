@@ -281,3 +281,31 @@ class Address(Struct):
             v, data = EUI64.deserialize(data)
         setattr(r, cls._fields[1][0], v)
         return r, data
+
+
+class DeviceEntry(Struct):
+    _fields = [
+        ("id", uint8_t),
+        ("short_addr", NWK),
+        ("ieee_addr", EUI64),
+        ("power_source", uint8_t),
+        ("link_quality", uint8_t),
+    ]
+
+
+class DeviceEntryArray(tuple):
+    @classmethod
+    def deserialize(cls, data):
+        if len(data) % 13 != 0:
+            raise ValueError("Data is not an array of DeviceEntry")
+
+        entries = []
+
+        while data:
+            entry, data = DeviceEntry.deserialize(data)
+            entries.append(entry)
+
+        return cls(entries), data
+
+    def serialize(self):
+        return b"".join([e.serialize() for e in self])

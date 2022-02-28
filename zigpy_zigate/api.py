@@ -26,6 +26,7 @@ class CommandId(enum.IntEnum):
     GET_VERSION = 0x0010
     RESET = 0x0011
     ERASE_PERSISTENT_DATA = 0x0012
+    GET_DEVICES_LIST = 0x0015
     SET_TIMESERVER = 0x0016
     GET_TIMESERVER = 0x0017
     SET_LED = 0x0018
@@ -54,6 +55,7 @@ class ResponseId(enum.IntEnum):
     ACK_DATA = 0x8011
     APS_DATA_CONFIRM = 0x8012
     PERMIT_JOIN_RSP = 0x8014
+    GET_DEVICES_LIST_RSP = 0x8015
     GET_TIMESERVER_LIST = 0x8017
     NETWORK_JOINED_FORMED = 0x8024
     PDM_EVENT = 0x8035
@@ -106,6 +108,7 @@ RESPONSES = {
         t.uint8_t,
     ),
     ResponseId.PERMIT_JOIN_RSP: (t.uint8_t,),
+    ResponseId.GET_DEVICES_LIST_RSP: (t.DeviceEntryArray,),
     ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
     ResponseId.NETWORK_JOINED_FORMED: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     ResponseId.PDM_EVENT: (t.Status, t.uint32_t),
@@ -447,6 +450,11 @@ class ZiGate:
     async def set_extended_panid(self, extended_pan_id):
         data = t.serialize([extended_pan_id], COMMANDS[CommandId.SET_EXT_PANID])
         await self.command(CommandId.SET_EXT_PANID, data)
+
+    async def get_devices_list(self):
+        (entries,), lqi = await self.command(CommandId.GET_DEVICES_LIST, wait_response=ResponseId.GET_DEVICES_LIST_RSP)
+
+        return list(entries or [])
 
     async def permit_join(self, duration=60):
         data = t.serialize([0xfffc, duration, 0], COMMANDS[CommandId.PERMIT_JOINING_REQUEST])

@@ -71,16 +71,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             extended_pan_id=epid,
             pan_id=zigpy.types.PanId(network_state[2]),
             nwk_update_id=None,
-            nwk_manager_id=0x0000,
+            nwk_manager_id=zigpy.types.NWK(0x0000),
             channel=network_state[4],
             channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
             security_level=5,
-            network_key=None,  # TODO: is it possible to read the network key?
-            tc_link_key=None,
+            network_key=zigpy.state.Key(),  # TODO: is it possible to read the network key?
+            tc_link_key=zigpy.state.Key(),
             children=[],
             key_table=[],
             nwk_addresses={},
-            stack_specific=None,
+            stack_specific={},
         )
 
         self.state.node_info = zigpy.state.NodeInfo(
@@ -88,6 +88,17 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             ieee=zigpy.types.EUI64(network_state[1]),
             logical_type=zigpy.zdo.types.LogicalType.Coordinator,
         )
+
+        if not load_devices:
+            return
+
+        for device in await self._api.get_devices_list():
+            if device.power_source != 0:  # only battery-powered devices
+                continue
+
+            ieee = zigpy.types.EUI64(device.ieee_addr)
+            self.state.network_info.children.append(ieee)
+            self.state.network_info.nwk_addresses[ieee] = zigpy.types.NWK(device.short_addr)
 
     async def write_network_info(self, *, network_info, node_info):
         LOGGER.warning('Setting the pan_id is not supported by ZiGate')
