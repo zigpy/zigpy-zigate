@@ -149,6 +149,17 @@ class ADDRESS_MODE(uint8_t, enum.Enum):
     IEEE = 0x03
 
 
+class LogLevel(uint8_t, enum.Enum):
+    Emergency = 0
+    Alert = 1
+    Critical = 2
+    Error = 3
+    Warning = 4
+    Notice = 5
+    Information = 6
+    Debug = 7
+
+
 class Struct:
     _fields = []
 

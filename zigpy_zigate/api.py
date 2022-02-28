@@ -43,6 +43,7 @@ class CommandId(enum.IntEnum):
 class ResponseId(enum.IntEnum):
     DEVICE_ANNOUNCE = 0x004D
     STATUS = 0x8000
+    LOG = 0x8001
     DATA_INDICATION = 0x8002
     PDM_LOADED = 0x0302
     NODE_NON_FACTORY_NEW_RESTART = 0x8006
@@ -64,6 +65,7 @@ class ResponseId(enum.IntEnum):
 RESPONSES = {
     ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
     ResponseId.STATUS: (t.uint8_t, t.uint8_t, t.uint16_t, t.Bytes),
+    ResponseId.LOG: (t.LogLevel, t.Bytes),
     ResponseId.DATA_INDICATION: (
         t.uint8_t,
         t.uint16_t,
