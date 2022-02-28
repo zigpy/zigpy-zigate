@@ -12,7 +12,7 @@ import zigpy.exceptions
 
 from zigpy_zigate import types as t
 from zigpy_zigate import common as c
-from zigpy_zigate.api import NoResponseError, ZiGate, PDM_EVENT
+from zigpy_zigate.api import NoResponseError, ZiGate, CommandId, ResponseId, PDM_EVENT
 from zigpy_zigate.config import CONF_DEVICE, CONF_DEVICE_PATH, CONFIG_SCHEMA, SCHEMA_DEVICE
 
 LOGGER = logging.getLogger(__name__)
@@ -120,11 +120,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler {}'.format(response))
 
-        if msg == 0x8048:  # leave
+        if msg == ResponseId.LEAVE_INDICATION:
             nwk = 0
             ieee = zigpy.types.EUI64(response[0])
             self.handle_leave(nwk, ieee)
-        elif msg == 0x004D:  # join
+        elif msg == ResponseId.DEVICE_ANNOUNCE:
             nwk = response[0]
             ieee = zigpy.types.EUI64(response[1])
             parent_nwk = 0
@@ -139,7 +139,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             # else:
             #     LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
             #     self._pending_join.append(nwk)
-        elif msg == 0x8002:
+        elif msg == ResponseId.DATA_INDICATION:
             if response[1] == 0x0 and response[2] == 0x13:
                 nwk = zigpy.types.NWK(response[5].address)
                 ieee = zigpy.types.EUI64(response[7][3:11])
@@ -162,22 +162,22 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.handle_message(device, response[1],
                                 response[2],
                                 response[3], response[4], response[-1])
-        elif msg == 0x8011:  # ACK Data
+        elif msg == ResponseId.ACK_DATA:
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
             # self._handle_frame_failure(response[4], response[0])
-        elif msg == 0x8012:  # ZPS Event
+        elif msg == ResponseId.APS_DATA_CONFIRM:
             LOGGER.debug('ZPS Event APS data confirm, message routed to %s %s', response[3], response[0])
-        elif msg == 0x8035:  # PDM Event
+        elif msg == ResponseId.PDM_EVENT:
             try:
                 event = PDM_EVENT(response[0]).name
             except ValueError:
                 event = 'Unknown event'
             LOGGER.debug('PDM Event %s %s, record %s', response[0], event, response[1])
-        elif msg == 0x8702:  # APS Data confirm Fail
+        elif msg == ResponseId.APS_DATA_CONFIRM_FAILED:
             LOGGER.debug('APS Data confirm Fail %s %s', response[4], response[0])
             self._handle_frame_failure(response[4], response[0])
-        elif msg == 0x9999:  # ZCL event
+        elif msg == ResponseId.ZCL_EVENT:
             LOGGER.warning('Extended error code %s', response[0])
 
     def _handle_frame_failure(self, message_tag, status):
