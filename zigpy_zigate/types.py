@@ -141,7 +141,7 @@ class NWK(uint16_t):
         return "0x{:04x}".format(self)
 
 
-class ADDRESS_MODE(uint8_t, enum.Enum):
+class AddressMode(uint8_t, enum.Enum):
     # Address modes used in zigate protocol
 
     GROUP = 0x01
@@ -261,7 +261,7 @@ class Struct:
 
 class Address(Struct):
     _fields = [
-        ('address_mode', ADDRESS_MODE),
+        ('address_mode', AddressMode),
         ('address', EUI64),
     ]
 
@@ -275,9 +275,9 @@ class Address(Struct):
         mode, data = field_type.deserialize(data)
         setattr(r, field_name, mode)
         v = None
-        if mode in [ADDRESS_MODE.GROUP, ADDRESS_MODE.NWK]:
+        if mode in [AddressMode.GROUP, AddressMode.NWK]:
             v, data = NWK.deserialize(data)
-        elif mode == ADDRESS_MODE.IEEE:
+        elif mode == AddressMode.IEEE:
             v, data = EUI64.deserialize(data)
         setattr(r, cls._fields[1][0], v)
         return r, data

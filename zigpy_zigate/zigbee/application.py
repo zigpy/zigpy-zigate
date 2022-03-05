@@ -163,9 +163,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 self.handle_join(nwk, ieee, parent_nwk)
                 return
             try:
-                if response[5].address_mode == t.ADDRESS_MODE.NWK:
+                if response[5].address_mode == t.AddressMode.NWK:
                     device = self.get_device(nwk = zigpy.types.NWK(response[5].address))
-                elif response[5].address_mode == t.ADDRESS_MODE.IEEE:
+                elif response[5].address_mode == t.AddressMode.IEEE:
                     device = self.get_device(ieee=zigpy.types.EUI64(response[5].address))
                 else:
                     LOGGER.error("No such device %s", response[5].address)
