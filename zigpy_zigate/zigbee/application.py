@@ -58,6 +58,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         # TODO: how do you start the network? Is it always automatically started?
         dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
         self.devices[dev.ieee] = dev
+        await dev.initialize()
 
     async def load_network_info(self, *, load_devices: bool = False):
         network_state, lqi = await self._api.get_network_state()
