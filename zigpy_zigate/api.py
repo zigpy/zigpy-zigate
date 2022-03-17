@@ -457,7 +457,7 @@ class ZiGate:
         return list(entries or [])
 
     async def permit_join(self, duration=60):
-        data = t.serialize([0xfffc, duration, 0], COMMANDS[CommandId.PERMIT_JOINING_REQUEST])
+        data = t.serialize([0x0000, duration, 1], COMMANDS[CommandId.PERMIT_JOINING_REQUEST])
         return await self.command(CommandId.PERMIT_JOINING_REQUEST, data)
 
     async def start_network(self):
