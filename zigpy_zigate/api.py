@@ -59,6 +59,7 @@ class ResponseId(enum.IntEnum):
     GET_TIMESERVER_LIST = 0x8017
     NETWORK_JOINED_FORMED = 0x8024
     PDM_EVENT = 0x8035
+    NODE_DESCRIPTOR_RSP = 0x8042
     LEAVE_INDICATION = 0x8048
     ROUTE_DISCOVERY_CONFIRM = 0x8701
     APS_DATA_CONFIRM_FAILED = 0x8702
@@ -112,6 +113,19 @@ RESPONSES = {
     ResponseId.GET_TIMESERVER_LIST: (t.uint32_t,),
     ResponseId.NETWORK_JOINED_FORMED: (t.uint8_t, t.NWK, t.EUI64, t.uint8_t),
     ResponseId.PDM_EVENT: (t.Status, t.uint32_t),
+    ResponseId.NODE_DESCRIPTOR_RSP: (
+        t.uint8_t,
+        t.Status,
+        t.NWK,
+        t.uint16_t,
+        t.uint16_t,
+        t.uint16_t,
+        t.uint16_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.uint8_t,
+        t.uint16_t,
+    ),
     ResponseId.LEAVE_INDICATION: (t.EUI64, t.uint8_t),
     ResponseId.ROUTE_DISCOVERY_CONFIRM: (t.uint8_t, t.uint8_t),
     ResponseId.APS_DATA_CONFIRM_FAILED: (
