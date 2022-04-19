@@ -134,6 +134,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def force_remove(self, dev):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
+    async def add_endpoint(self, descriptor):
+        # ZiGate does not support adding new endpoints
+        pass
+
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler %s %s', msg, response)
 
