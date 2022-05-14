@@ -10,6 +10,7 @@ import zigpy.util
 import zigpy.zdo
 import zigpy.exceptions
 
+import zigpy_zigate
 from zigpy_zigate import types as t
 from zigpy_zigate import common as c
 from zigpy_zigate.api import NoResponseError, ZiGate, CommandId, ResponseId, PDM_EVENT
@@ -75,6 +76,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         epid, _ = zigpy.types.ExtendedPanId.deserialize(zigpy.types.uint64_t(network_state[3]).serialize())
 
         self.state.network_info = zigpy.state.NetworkInfo(
+            source=f"zigpy-zigate@{zigpy_zigate.__version__}",
             extended_pan_id=epid,
             pan_id=zigpy.types.PanId(network_state[2]),
             nwk_update_id=0,
@@ -89,6 +91,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             key_table=[],
             nwk_addresses={},
             stack_specific={},
+            metadata={
+                "zigate": {
+                    "version": self.version,
+                }
+            }
         )
 
         self.state.network_info.tc_link_key.partner_ieee = self.state.node_info.ieee
