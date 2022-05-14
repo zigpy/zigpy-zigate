@@ -66,6 +66,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if not network_state or network_state[3] == 0 or network_state[0] == 0xffff:
             raise zigpy.exceptions.NetworkNotFormed()
 
+        self.state.node_info = zigpy.state.NodeInfo(
+            nwk=zigpy.types.NWK(network_state[0]),
+            ieee=zigpy.types.EUI64(network_state[1]),
+            logical_type=zigpy.zdo.types.LogicalType.Coordinator,
+        )
+
         epid, _ = zigpy.types.ExtendedPanId.deserialize(zigpy.types.uint64_t(network_state[3]).serialize())
 
         self.state.network_info = zigpy.state.NetworkInfo(
@@ -76,19 +82,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             channel=network_state[4],
             channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
             security_level=5,
-            network_key=zigpy.state.Key(),  # TODO: is it possible to read the network key?
-            tc_link_key=zigpy.state.Key(),
+            # TODO: is it possible to read keys?
+            # network_key=zigpy.state.Key(),
+            # tc_link_key=zigpy.state.Key(),
             children=[],
             key_table=[],
             nwk_addresses={},
             stack_specific={},
         )
 
-        self.state.node_info = zigpy.state.NodeInfo(
-            nwk=zigpy.types.NWK(network_state[0]),
-            ieee=zigpy.types.EUI64(network_state[1]),
-            logical_type=zigpy.zdo.types.LogicalType.Coordinator,
-        )
+        self.state.network_info.tc_link_key.partner_ieee = self.state.node_info.ieee
 
         if not load_devices:
             return
