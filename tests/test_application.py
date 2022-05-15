@@ -45,6 +45,7 @@ def test_model_detection(app):
 
 @pytest.mark.asyncio
 async def test_form_network_success(app):
+    app._api.erase_persistent_data = AsyncMock()
     app._api.set_channel = AsyncMock()
     app._api.set_extended_panid = AsyncMock()
     app._api.reset = AsyncMock()
@@ -54,7 +55,17 @@ async def test_form_network_success(app):
     app._api.start_network = mock_start_network
 
     async def mock_get_network_state():
-        return [[0x0000, 0x0123456789abcdef, 0x1234, 0x1234abcdef012345, 0x11], 0]
+        return [
+            [
+                0x0000,
+                t.EUI64([0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01]),
+                0x1234,
+                0x1234abcdef012345,
+                0x11,
+            ],
+            0,
+        ]
+
     app._api.get_network_state = mock_get_network_state
 
     await app.form_network()
@@ -72,6 +83,7 @@ async def test_form_network_success(app):
 
 @pytest.mark.asyncio
 async def test_form_network_failed(app):
+    app._api.erase_persistent_data = AsyncMock()
     app._api.set_channel = AsyncMock()
     app._api.set_extended_panid = AsyncMock()
     app._api.reset = AsyncMock()

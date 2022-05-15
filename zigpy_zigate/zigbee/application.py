@@ -122,11 +122,15 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.set_extended_panid(epid)
 
         network_formed, lqi = await self._api.start_network()
-        assert network_formed[0] in (
+        
+        if network_formed[0] not in (
             t.Status.Success,
             t.Status.IncorrectParams,
             t.Status.Busy,
-        )
+        ):
+            raise zigpy.exceptions.FormationFailure(
+                f"Unexpected error starting network: {network_formed!r}"
+            )
 
         LOGGER.warning('Starting network got status %s, wait...', network_formed[0])
         for attempt in range(3):
