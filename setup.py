@@ -53,7 +53,7 @@ requires = [
     'pyserial-asyncio>=0.5; platform_system!="Windows"',
     'pyserial-asyncio!=0.5; platform_system=="Windows"',  # 0.5 broke writesv
     'pyusb>=1.1.0',
-    'zigpy>=0.22.2',
+    'zigpy>=0.47.0',
 ]
 
 if is_raspberry_pi():
