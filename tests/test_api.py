@@ -103,7 +103,7 @@ async def test_probe_fail(mock_connect, mock_raw_mode, exception):
 
 
 @pytest.mark.asyncio
-@patch.object(asyncio, "wait_for", side_effect=asyncio.TimeoutError)
+@patch.object(asyncio, "wait", return_value=([], []))
 async def test_api_command(mock_command, api):
     """Test command method."""
     try:
