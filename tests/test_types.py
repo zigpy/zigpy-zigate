@@ -23,8 +23,8 @@ def test_deserialize():
     assert result[2] == 0x0001
     assert result[3] == 0x01
     assert result[4] == 0x01
-    assert result[5] == t.Address(address_mode=t.ADDRESS_MODE.NWK, address=t.NWK(0x1234))
-    assert result[6] == t.Address(address_mode=t.ADDRESS_MODE.NWK, address=t.NWK(0xabcd))
+    assert result[5] == t.Address(address_mode=t.AddressMode.NWK, address=t.NWK(0x1234))
+    assert result[6] == t.Address(address_mode=t.AddressMode.NWK, address=t.NWK(0xabcd))
     assert result[7] == b'\x01\x00\xBE\xEF'
     assert rest == b''
 
@@ -34,7 +34,7 @@ def test_deserialize():
     assert result[0] == 0x00
     assert result[1] == 0x01
     assert result[2] == 0x01
-    assert result[3] == t.Address(address_mode=t.ADDRESS_MODE.NWK, address=t.NWK(0x1234))
+    assert result[3] == t.Address(address_mode=t.AddressMode.NWK, address=t.NWK(0x1234))
     assert result[4] == 0xff
 
     data = b'\x00\x01\x01\x03\x12\x34\x56\x78\x9a\xbc\xde\xf0\xff'
@@ -43,7 +43,7 @@ def test_deserialize():
     assert result[0] == 0x00
     assert result[1] == 0x01
     assert result[2] == 0x01
-    assert result[3] == t.Address(address_mode=t.ADDRESS_MODE.IEEE,
+    assert result[3] == t.Address(address_mode=t.AddressMode.IEEE,
                                   address=t.EUI64.deserialize(b'\x12\x34\x56\x78\x9a\xbc\xde\xf0')[0])
     assert result[4] == 0xff
 
@@ -73,7 +73,7 @@ def test_deserialize():
     assert result[0] == 0x00
     assert result[1] == 0x01
     assert result[2] == 0x01
-    assert result[3] == t.Address(address_mode=t.ADDRESS_MODE.NWK,
+    assert result[3] == t.Address(address_mode=t.AddressMode.NWK,
                                   address=t.NWK.deserialize(b'\xbc\x8c')[0])
     assert result[4] == 0x73
     assert len(result) == 5
