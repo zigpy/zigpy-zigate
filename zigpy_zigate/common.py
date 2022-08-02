@@ -31,6 +31,7 @@ class UnclosableOutputDevice(OutputDevice):
             pin_factory=pin_factory,
         )
         self._pin.close = lambda *args, **kwargs: None
+        self.pin_factory.close = lambda *args, **kwargs: None
 
 
 def discover_port():
