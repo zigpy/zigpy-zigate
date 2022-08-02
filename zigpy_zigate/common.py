@@ -22,7 +22,7 @@ class UnclosableOutputDevice(OutputDevice):
     """
 
     def __init__(
-        self, pin=None, *, active_high=True, initial_value=None, pin_factory=None
+        self, pin=None, *, active_high=True, initial_value=False, pin_factory=None
     ):
         super().__init__(
             pin,
@@ -80,8 +80,8 @@ def is_zigate_wifi(port):
 def set_pizigate_running_mode():
     LOGGER.info('Put PiZiGate in running mode')
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2)
+    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_state=None)
+    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_state=None)
 
     gpio2.on()
     time.sleep(0.5)
@@ -96,8 +96,8 @@ def set_pizigate_running_mode():
 def set_pizigate_flashing_mode():
     LOGGER.info('Put PiZiGate in flashing mode')
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2)
+    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_state=None)
+    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_state=None)
 
     gpio2.off()
     time.sleep(0.5)
