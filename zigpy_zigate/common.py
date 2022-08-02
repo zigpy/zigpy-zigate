@@ -69,15 +69,14 @@ def set_pizigate_running_mode():
     from gpiozero import OutputDevice
 
     LOGGER.info('Put PiZiGate in running mode')
-    gpio17 = OutputDevice(pin=17)
-    gpio27 = OutputDevice(pin=27)
 
-    gpio27.on()
-    time.sleep(0.5)
-    gpio17.off()
-    time.sleep(0.5)
-    gpio17.on()
-    time.sleep(0.5)
+    with OutputDevice(pin=17) as gpio17, OutputDevice(pin=27) as gpio27:
+        gpio27.on()
+        time.sleep(0.5)
+        gpio17.off()
+        time.sleep(0.5)
+        gpio17.on()
+        time.sleep(0.5)
 
 
 @async_run_in_executor
@@ -85,15 +84,14 @@ def set_pizigate_flashing_mode():
     from gpiozero import OutputDevice
 
     LOGGER.info('Put PiZiGate in flashing mode')
-    gpio17 = OutputDevice(pin=17)
-    gpio27 = OutputDevice(pin=27)
 
-    gpio27.off()
-    time.sleep(0.5)
-    gpio17.off()
-    time.sleep(0.5)
-    gpio17.on()
-    time.sleep(0.5)
+    with OutputDevice(pin=17) as gpio17, OutputDevice(pin=27) as gpio27:
+        gpio27.off()
+        time.sleep(0.5)
+        gpio17.off()
+        time.sleep(0.5)
+        gpio17.on()
+        time.sleep(0.5)
 
 
 @async_run_in_executor
