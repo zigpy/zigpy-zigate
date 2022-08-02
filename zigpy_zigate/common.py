@@ -53,48 +53,38 @@ def is_zigate_wifi(port):
     return port.startswith('socket://')
 
 
-def async_run_in_executor(function):
-    """Decorator to make a sync function async."""
-
-    async def replacement(*args):
-        return asyncio.get_running_loop().run_in_executor(None, function, *args)
-
-    replacement._sync_func = function
-
-    return replacement
-
-
-@async_run_in_executor
 def set_pizigate_running_mode():
     from gpiozero import OutputDevice
 
     LOGGER.info('Put PiZiGate in running mode')
 
-    with OutputDevice(pin=17) as gpio17, OutputDevice(pin=27) as gpio27:
-        gpio27.on()
+    with OutputDevice(pin=17) as gpio0, OutputDevice(pin=27) as gpio2:
+        gpio2.on()
         time.sleep(0.5)
-        gpio17.off()
+
+        gpio0.off()
         time.sleep(0.5)
-        gpio17.on()
+
+        gpio0.on()
         time.sleep(0.5)
 
 
-@async_run_in_executor
 def set_pizigate_flashing_mode():
     from gpiozero import OutputDevice
 
     LOGGER.info('Put PiZiGate in flashing mode')
 
-    with OutputDevice(pin=17) as gpio17, OutputDevice(pin=27) as gpio27:
-        gpio27.off()
+    with OutputDevice(pin=17) as gpio0, OutputDevice(pin=27) as gpio2:
+        gpio2.off()
         time.sleep(0.5)
-        gpio17.off()
+
+        gpio0.off()
         time.sleep(0.5)
-        gpio17.on()
+
+        gpio0.on()
         time.sleep(0.5)
 
 
-@async_run_in_executor
 def ftdi_set_bitmode(dev, bitmask):
     '''
     Set mode for ZiGate DIN module
@@ -110,7 +100,6 @@ def ftdi_set_bitmode(dev, bitmask):
     dev.ctrl_transfer(bmRequestType, SIO_SET_BITMODE_REQUEST, wValue)
 
 
-@async_run_in_executor
 def set_zigatedin_running_mode():
     import usb
 
@@ -125,7 +114,6 @@ def set_zigatedin_running_mode():
     time.sleep(0.5)
 
 
-@async_run_in_executor
 def set_zigatedin_flashing_mode():
     import usb
 
@@ -144,3 +132,21 @@ def set_zigatedin_flashing_mode():
     time.sleep(0.5)
     ftdi_set_bitmode(dev, 0xCC)
     time.sleep(0.5)
+
+
+def async_run_in_executor(function):
+    """Decorator to make a sync function async."""
+
+    async def replacement(*args):
+        return asyncio.get_running_loop().run_in_executor(None, function, *args)
+
+    replacement._sync_func = function
+
+    return replacement
+
+
+# Create async version of all of the above functions
+async_set_pizigate_running_mode = async_run_in_executor(set_pizigate_running_mode)
+async_set_pizigate_flashing_mode = async_run_in_executor(set_pizigate_flashing_mode)
+async_set_zigatedin_running_mode = async_run_in_executor(set_zigatedin_running_mode)
+async_set_zigatedin_flashing_mode = async_run_in_executor(set_zigatedin_flashing_mode)

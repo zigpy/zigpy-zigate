@@ -428,9 +428,9 @@ def main():
         LOGGER.setLevel(logging.DEBUG)
 
     if args.gpio:
-        c.set_pizigate_flashing_mode._sync_func()
+        c.set_pizigate_flashing_mode()
     elif args.din:
-        c.set_zigatedin_flashing_mode._sync_func()
+        c.set_zigatedin_flashing_mode()
 
     if args.upgrade:
         upgrade_firmware(args.serialport)
@@ -460,9 +460,9 @@ def main():
 #             erase_EEPROM(ser, args.pdm_only)
 
     if args.gpio:
-        c.set_pizigate_running_mode._sync_func()
+        c.set_pizigate_running_mode()
     elif args.din:
-        c.set_zigatedin_running_mode._sync_func()
+        c.set_zigatedin_running_mode()
 
 
 if __name__ == "__main__":
