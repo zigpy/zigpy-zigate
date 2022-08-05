@@ -20,17 +20,6 @@ from zigpy_zigate import common as c
 import time
 import serial
 from serial.tools.list_ports import comports
-try:
-    import RPi.GPIO as GPIO
-except Exception:
-    # Fake GPIO
-    class GPIO:
-        def fake(self, *args, **kwargs):
-            pass
-
-        def __getattr__(self, *args, **kwargs):
-            return self.fake
-    GPIO = GPIO()
 import usb
 
 
@@ -419,19 +408,6 @@ def upgrade_firmware(port):
     print('ZiGate flashed with {}'.format(firmware_path))
 
 
-def ftdi_set_bitmode(dev, bitmask):
-    '''
-    Set mode for ZiGate DIN module
-    '''
-    BITMODE_CBUS = 0x20
-    SIO_SET_BITMODE_REQUEST = 0x0b
-    bmRequestType = usb.util.build_request_type(usb.util.CTRL_OUT,
-                                                usb.util.CTRL_TYPE_VENDOR,
-                                                usb.util.CTRL_RECIPIENT_DEVICE)
-    wValue = bitmask | (BITMODE_CBUS << BITMODE_CBUS)
-    dev.ctrl_transfer(bmRequestType, SIO_SET_BITMODE_REQUEST, wValue)
-
-
 def main():
     ports_available = [port for (port, _, _) in sorted(comports())]
     parser = argparse.ArgumentParser()
@@ -452,33 +428,9 @@ def main():
         LOGGER.setLevel(logging.DEBUG)
 
     if args.gpio:
-        LOGGER.info('Put PiZiGate in flash mode')
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(27, GPIO.OUT)  # GPIO2
-        GPIO.output(27, GPIO.LOW)  # GPIO2
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
-        time.sleep(0.5)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
-        time.sleep(0.5)
+        c.set_pizigate_flashing_mode()
     elif args.din:
-        LOGGER.info('Put ZiGate DIN in flash mode')
-        dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
-        if not dev:
-            LOGGER.error('ZiGate DIN not found.')
-            return
-        ftdi_set_bitmode(dev, 0x00)
-        time.sleep(0.5)
-        # Set CBUS2/3 high...
-        ftdi_set_bitmode(dev, 0xCC)
-        time.sleep(0.5)
-        # Set CBUS2/3 low...
-        ftdi_set_bitmode(dev, 0xC0)
-        time.sleep(0.5)
-        ftdi_set_bitmode(dev, 0xC4)
-        time.sleep(0.5)
-        # Set CBUS2/3 back to tristate
-        ftdi_set_bitmode(dev, 0xCC)
-        time.sleep(0.5)
+        c.set_zigatedin_flashing_mode()
 
     if args.upgrade:
         upgrade_firmware(args.serialport)
@@ -508,18 +460,9 @@ def main():
 #             erase_EEPROM(ser, args.pdm_only)
 
     if args.gpio:
-        LOGGER.info('Put PiZiGate in running mode')
-        GPIO.output(27, GPIO.HIGH)  # GPIO2
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # GPIO0
-        time.sleep(0.5)
-        GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # GPIO0
-        time.sleep(0.5)
+        c.set_pizigate_running_mode()
     elif args.din:
-        LOGGER.info('Put ZiGate DIN in running mode')
-        ftdi_set_bitmode(dev, 0xC8)
-        time.sleep(0.5)
-        ftdi_set_bitmode(dev, 0xCC)
-        time.sleep(0.5)
+        c.set_zigatedin_running_mode()
 
 
 if __name__ == "__main__":

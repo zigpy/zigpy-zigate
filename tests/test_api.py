@@ -73,8 +73,6 @@ async def test_probe_success(mock_raw_mode, port, monkeypatch):
     DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
         {zigpy_zigate.config.CONF_DEVICE_PATH: port}
     )
-    sys.modules['RPi'] = MagicMock()
-    sys.modules['RPi.GPIO'] = MagicMock()
     res = await zigate_api.ZiGate.probe(DEVICE_CONFIG)
     assert res is True
     assert mock_raw_mode.call_count == 1
