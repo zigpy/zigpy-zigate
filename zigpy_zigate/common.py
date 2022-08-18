@@ -81,8 +81,8 @@ def is_zigate_wifi(port):
 def set_pizigate_running_mode():
     LOGGER.info('Put PiZiGate in running mode')
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_state=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_state=None)
+    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
+    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
 
     gpio2.on()
     time.sleep(0.5)
@@ -97,8 +97,8 @@ def set_pizigate_running_mode():
 def set_pizigate_flashing_mode():
     LOGGER.info('Put PiZiGate in flashing mode')
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_state=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_state=None)
+    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
+    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
 
     gpio2.off()
     time.sleep(0.5)

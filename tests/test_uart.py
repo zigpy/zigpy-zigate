@@ -1,6 +1,7 @@
 from .async_mock import MagicMock, AsyncMock
 
 import pytest
+import gpiozero
 import serial_asyncio
 import serial.tools.list_ports
 
@@ -173,3 +174,10 @@ def test_is_not_zigate_wifi():
     port = '/dev/ttyUSB1'
     r = common.is_zigate_wifi(port)
     assert r is False
+
+
+def test_startup_gpio_toggling(monkeypatch):
+    monkeypatch.setattr(gpiozero.Device, '_default_pin_factory', MagicMock())
+
+    common.set_pizigate_running_mode()
+    common.set_pizigate_flashing_mode()
