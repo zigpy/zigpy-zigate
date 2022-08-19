@@ -50,7 +50,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
 
-        if self._api:
+        if self._api is not None:
             try:
                 await self._api.reset(wait=False)
             except Exception as e:
