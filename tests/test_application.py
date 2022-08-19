@@ -2,6 +2,7 @@ from unittest import mock
 from .async_mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
+import logging
 import zigpy.types as zigpy_types
 import zigpy.exceptions
 
@@ -96,3 +97,41 @@ async def test_form_network_failed(app):
 
     with pytest.raises(zigpy.exceptions.FormationFailure):
         await app.form_network()
+
+
+@pytest.mark.asyncio
+async def test_disconnect_success(app):
+    api = MagicMock()
+
+    app._api = api
+    await app.disconnect()
+
+    api.close.assert_called_once()
+    assert app._api is None
+
+
+@pytest.mark.asyncio
+async def test_disconnect_failure(app, caplog):
+    api = MagicMock()
+    api.disconnect = MagicMock(side_effect=RuntimeError("Broken"))
+
+    app._api = api
+
+    with caplog.at_level(logging.WARNING):
+        await app.disconnect()
+
+    assert "disconnect" in caplog.text
+
+    api.close.assert_called_once()
+    assert app._api is None
+
+
+@pytest.mark.asyncio
+async def test_disconnect_multiple(app):
+    app._api = None
+
+    await app.disconnect()
+    await app.disconnect()
+    await app.disconnect()
+
+    assert app._api is None
