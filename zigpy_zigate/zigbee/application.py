@@ -49,11 +49,15 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
-        await self._api.reset(wait=False)
 
-        if self._api:
-            self._api.close()
-            self._api = None
+        if self._api is not None:
+            try:
+                await self._api.reset(wait=False)
+            except Exception as e:
+                LOGGER.warning("Failed to reset before disconnect: %s", e)
+            finally:
+                self._api.close()
+                self._api = None
 
     async def start_network(self):
         # TODO: how do you start the network? Is it always automatically started?
