@@ -67,6 +67,10 @@ class ResponseId(enum.IntEnum):
     EXTENDED_ERROR = 0x9999
 
 
+class SendSecurity(t.uint8_t, enum.Enum):
+    NETWORK = 0x00
+    APPLINK = 0x01
+    TEMP_APPLINK = 0x02
 
 
 class NonFactoryNewRestartStatus(t.uint8_t, enum.Enum):
@@ -482,11 +486,10 @@ class ZiGate:
         return await self.command(CommandId.NETWORK_REMOVE_DEVICE, data)
 
     async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
-                                   cluster, payload, addr_mode=2, security=0):
+                                   cluster, payload, addr_mode=t.AddressMode.NWK, security=SendSecurity.NETWORK, radius=0):
         '''
         Send raw APS Data request
         '''
-        radius = 0
         data = t.serialize([addr_mode, addr,
                            src_ep, dst_ep, cluster, profile,
                            security, radius, payload], COMMANDS[CommandId.SEND_RAW_APS_DATA_PACKET])
