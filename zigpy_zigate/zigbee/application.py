@@ -115,11 +115,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.state.network_info.children.append(ieee)
             self.state.network_info.nwk_addresses[ieee] = zigpy.types.NWK(device.short_addr)
 
+    async def reset_network_info(self):
+        await self._api.erase_persistent_data()
+
     async def write_network_info(self, *, network_info, node_info):
         LOGGER.warning('Setting the pan_id is not supported by ZiGate')
 
-        await self._api.erase_persistent_data()
-
+        await self.reset_network_info()
         await self._api.set_channel(network_info.channel)
 
         epid, _ = zigpy.types.uint64_t.deserialize(network_info.extended_pan_id.serialize())
