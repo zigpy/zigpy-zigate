@@ -144,9 +144,20 @@ class NWK(uint16_t):
 class AddressMode(uint8_t, enum.Enum):
     # Address modes used in zigate protocol
 
+    BOUND = 0x00
     GROUP = 0x01
     NWK = 0x02
     IEEE = 0x03
+    BROADCAST = 0x04
+
+    NO_TRANSMIT = 0x05
+
+    BOUND_NO_ACK = 0x06
+    NWK_NO_ACK = 0x07
+    IEEE_NO_ACK = 0x08
+
+    BOUND_NON_BLOCKING = 0x09
+    BOUND_NON_BLOCKING_NO_ACK = 0x0A
 
 
 class Status(uint8_t, enum.Enum):
@@ -259,6 +270,26 @@ class Struct:
         return r
 
 
+ZIGPY_TO_ZIGATE_ADDR_MODE = {
+    # With ACKs
+    (zigpy.types.AddrMode.NWK, True): AddressMode.NWK,
+    (zigpy.types.AddrMode.IEEE, True): AddressMode.IEEE,
+    (zigpy.types.AddrMode.Broadcast, True): AddressMode.BROADCAST,
+    (zigpy.types.AddrMode.Group, True): AddressMode.GROUP,
+
+    # Without ACKs
+    (zigpy.types.AddrMode.NWK, False): AddressMode.NWK_NO_ACK,
+    (zigpy.types.AddrMode.IEEE, False): AddressMode.IEEE_NO_ACK,
+    (zigpy.types.AddrMode.Broadcast, False): AddressMode.BROADCAST,
+    (zigpy.types.AddrMode.Group, False): AddressMode.GROUP,
+}
+
+ZIGATE_TO_ZIGPY_ADDR_MODE = {
+    zigate_addr: (zigpy_addr, ack)
+    for (zigpy_addr, ack), zigate_addr in ZIGPY_TO_ZIGATE_ADDR_MODE.items()
+}
+
+
 class Address(Struct):
     _fields = [
         ('address_mode', AddressMode),
@@ -271,16 +302,22 @@ class Address(Struct):
     @classmethod
     def deserialize(cls, data):
         r = cls()
-        field_name, field_type = cls._fields[0]
-        mode, data = field_type.deserialize(data)
-        setattr(r, field_name, mode)
-        v = None
-        if mode in [AddressMode.GROUP, AddressMode.NWK]:
-            v, data = NWK.deserialize(data)
-        elif mode == AddressMode.IEEE:
-            v, data = EUI64.deserialize(data)
-        setattr(r, cls._fields[1][0], v)
+        r.address_mode, data = AddressMode.deserialize(data)
+
+        if r.address_mode in (AddressMode.IEEE, AddressMode.IEEE_NO_ACK):
+            r.address, data = EUI64.deserialize(data)
+        else:
+            r.address, data = NWK.deserialize(data)
+
         return r, data
+
+    def to_zigpy_type(self):
+        zigpy_addr_mode, ack = ZIGATE_TO_ZIGPY_ADDR_MODE[self.address_mode]
+
+        return (
+            zigpy.types.AddrModeAddress(addr_mode=zigpy_addr_mode, address=self.address),
+            ack,
+        )
 
 
 class DeviceEntry(Struct):

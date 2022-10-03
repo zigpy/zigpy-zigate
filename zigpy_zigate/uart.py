@@ -4,9 +4,7 @@ import logging
 import struct
 from typing import Any, Dict
 
-import serial  # noqa
-import serial.tools.list_ports
-import serial_asyncio
+import zigpy.serial
 
 from .config import CONF_DEVICE_PATH
 from . import common as c
@@ -141,38 +139,25 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     if port == 'auto':
         port = c.discover_port()
 
-    if c.is_zigate_wifi(port):
+    if c.is_pizigate(port):
+        LOGGER.debug('PiZiGate detected')
+        await c.async_set_pizigate_running_mode()
+        # in case of pizigate:/dev/ttyAMA0 syntax
+        if port.startswith('pizigate:'):
+            port = port.replace('pizigate:', '', 1)
+    elif c.is_zigate_din(port):
+        LOGGER.debug('ZiGate USB DIN detected')
+        await c.async_set_zigatedin_running_mode()
+    elif c.is_zigate_wifi(port):
         LOGGER.debug('ZiGate WiFi detected')
-        port = port.split('socket://', 1)[1]
-        if ':' in port:
-            host, port = port.split(':', 1)  # 192.168.x.y:9999
-            port = int(port)
-        else:
-            host = port
-            port = 9999
-        _, protocol = await loop.create_connection(
-            lambda: protocol,
-            host, port)
-    else:
-        if c.is_pizigate(port):
-            LOGGER.debug('PiZiGate detected')
-            await c.async_set_pizigate_running_mode()
-            # in case of pizigate:/dev/ttyAMA0 syntax
-            if port.startswith('pizigate:'):
-                port = port[9:]
-        elif c.is_zigate_din(port):
-            LOGGER.debug('ZiGate USB DIN detected')
-            await c.async_set_zigatedin_running_mode()
 
-        _, protocol = await serial_asyncio.create_serial_connection(
-            loop,
-            lambda: protocol,
-            url=port,
-            baudrate=ZIGATE_BAUDRATE,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            xonxoff=False,
-        )
+    _, protocol = await zigpy.serial.create_serial_connection(
+        loop,
+        lambda: protocol,
+        url=port,
+        baudrate=ZIGATE_BAUDRATE,
+        xonxoff=False,
+    )
 
     await connected_future
 
