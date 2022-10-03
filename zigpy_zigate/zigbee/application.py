@@ -115,11 +115,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.state.network_info.children.append(ieee)
             self.state.network_info.nwk_addresses[ieee] = zigpy.types.NWK(device.short_addr)
 
+    async def reset_network_info(self):
+        await self._api.erase_persistent_data()
+
     async def write_network_info(self, *, network_info, node_info):
         LOGGER.warning('Setting the pan_id is not supported by ZiGate')
 
-        await self._api.erase_persistent_data()
-
+        await self.reset_network_info()
         await self._api.set_channel(network_info.channel)
 
         epid, _ = zigpy.types.uint64_t.deserialize(network_info.extended_pan_id.serialize())
@@ -179,28 +181,30 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             #     LOGGER.debug('Start pairing {} (1st device announce)'.format(nwk))
             #     self._pending_join.append(nwk)
         elif msg == ResponseId.DATA_INDICATION:
-            if response[1] == 0x0 and response[2] == 0x13:
-                nwk = zigpy.types.NWK(response[5].address)
-                ieee = zigpy.types.EUI64(response[7][3:11])
-                parent_nwk = 0
-                self.handle_join(nwk, ieee, parent_nwk)
-                return
-            try:
-                if response[5].address_mode == t.AddressMode.NWK:
-                    device = self.get_device(nwk = zigpy.types.NWK(response[5].address))
-                elif response[5].address_mode == t.AddressMode.IEEE:
-                    device = self.get_device(ieee=zigpy.types.EUI64(response[5].address))
-                else:
-                    LOGGER.error("No such device %s", response[5].address)
-                    return
-            except KeyError:
-                LOGGER.debug("No such device %s", response[5].address)
-                return
-            rssi = 0
-            device.radio_details(lqi, rssi)
-            self.handle_message(device, response[1],
-                                response[2],
-                                response[3], response[4], response[-1])
+            (
+                status,
+                profile_id,
+                cluster_id,
+                src_ep,
+                dst_ep,
+                src,
+                dst,
+                payload,
+            ) = response
+
+            packet = zigpy.types.ZigbeePacket(
+                src=src.to_zigpy_type()[0],
+                src_ep=src_ep,
+                dst=dst.to_zigpy_type()[0],
+                dst_ep=dst_ep,
+                profile_id=profile_id,
+                cluster_id=cluster_id,
+                data=zigpy.types.SerializableBytes(payload),
+                lqi=lqi,
+                rssi=None,
+            )
+
+            self.packet_received(packet)
         elif msg == ResponseId.ACK_DATA:
             LOGGER.debug('ACK Data received %s %s', response[4], response[0])
             # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
@@ -228,32 +232,44 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         except asyncio.futures.InvalidStateError as exc:
             LOGGER.debug("Invalid state on future - probably duplicate response: %s", exc)
 
-    @zigpy.util.retryable_request
-    async def request(self, device, profile, cluster, src_ep, dst_ep, sequence, data,
-                      expect_reply=True, use_ieee=False):
-        return await self._request(device.nwk, profile, cluster, src_ep, dst_ep, sequence, data,
-        expect_reply, use_ieee)
+    async def send_packet(self, packet):
+        LOGGER.debug("Sending packet %r", packet)
 
-    async def mrequest(self, group_id, profile, cluster, src_ep, sequence, data, *, hops=0, non_member_radius=3):
-        src_ep = 1
-        return await self._request(group_id, profile, cluster, src_ep, src_ep, sequence, data, addr_mode=1)
-    
-    async def _request(self, nwk, profile, cluster, src_ep, dst_ep, sequence, data,
-                      expect_reply=True, use_ieee=False, addr_mode=2):
-        src_ep = 1 if dst_ep else 0  # ZiGate only support endpoint 1
-        LOGGER.debug('request %s',
-                     (nwk, profile, cluster, src_ep, dst_ep, sequence, data, expect_reply, use_ieee))
+        if packet.dst.addr_mode == zigpy.types.AddrMode.IEEE:
+            LOGGER.warning("IEEE addressing is not supported, falling back to NWK")
+
+            try:
+                device = self.get_device_with_address(packet.dst)
+            except (KeyError, ValueError):
+                raise ValueError(f"Cannot find device with IEEE {packet.dst.address}")
+
+            packet = packet.replace(
+                dst=zigpy.types.AddrModeAddress(
+                    addr_mode=zigpy.types.AddrMode.NWK, address=device.nwk
+                )
+            )
+
+        ack = (zigpy.types.TransmitOptions.ACK in packet.tx_options)
+
         try:
-            v, lqi = await self._api.raw_aps_data_request(nwk, src_ep, dst_ep, profile, cluster, data, addr_mode)
+            (status, tsn, packet_type, _), _ = await self._api.raw_aps_data_request(
+                addr=packet.dst.address,
+                src_ep=(1 if packet.dst_ep > 0 else 0),  # ZiGate only support endpoint 1
+                dst_ep=packet.dst_ep,
+                profile=packet.profile_id,
+                cluster=packet.cluster_id,
+                payload=packet.data.serialize(),
+                addr_mode=t.ZIGPY_TO_ZIGATE_ADDR_MODE[packet.dst.addr_mode, ack],
+                radius=packet.radius,
+            )
         except NoResponseError:
-            return 1, "ZiGate doesn't answer to command"
-        req_id = v[1]
-        send_fut = asyncio.Future()
-        self._pending[req_id] = send_fut
+            raise zigpy.exceptions.DeliveryError("ZiGate did not respond to command")
 
-        if v[0] != t.Status.Success:
-            self._pending.pop(req_id)
-            return v[0], "Message send failure {}".format(v[0])
+        if status != t.Status.Success:
+            self._pending.pop(tsn)
+            raise zigpy.exceptions.DeliveryError(f"Failed to deliver packet: {status}", status=status)
+
+        self._pending[tsn] = asyncio.get_running_loop().create_future()
 
         # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
         # try:
@@ -261,19 +277,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         # except asyncio.TimeoutError:
         #     return 1, "timeout waiting for message %s send ACK" % (sequence, )
         # finally:
-        #     self._pending.pop(req_id)
+        #     self._pending.pop(tsn)
         # return v, "Message sent"
-        return 0, "Message sent"
 
     async def permit_ncp(self, time_s=60):
         assert 0 <= time_s <= 254
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != t.Status.Success:
             await self._api.reset()
-
-    async def broadcast(self, profile, cluster, src_ep, dst_ep, grpid, radius,
-                        sequence, data, broadcast_address):
-        LOGGER.debug("Broadcast not implemented.")
 
 
 class ZiGateDevice(zigpy.device.Device):
