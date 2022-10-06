@@ -265,11 +265,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         except NoResponseError:
             raise zigpy.exceptions.DeliveryError("ZiGate did not respond to command")
 
+        self._pending[tsn] = asyncio.get_running_loop().create_future()
+
         if status != t.Status.Success:
             self._pending.pop(tsn)
             raise zigpy.exceptions.DeliveryError(f"Failed to deliver packet: {status}", status=status)
-
-        self._pending[tsn] = asyncio.get_running_loop().create_future()
 
         # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
         # try:
