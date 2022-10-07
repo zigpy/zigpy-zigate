@@ -258,7 +258,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if status != t.Status.Success:
             self._pending.pop(tsn)
-            raise zigpy.exceptions.DeliveryError(f"Failed to deliver packet: {status}", status=status)
+
+            # Firmwares 3.1d and below fail to send packets on every request
+            if status == t.Status.InvalidParameter and self.version <= "3.1d":
+                pass
+            else:
+                raise zigpy.exceptions.DeliveryError(f"Failed to send packet: {status}", status=status)
 
         # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
         # try:
