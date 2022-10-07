@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any, Dict, Optional
@@ -32,7 +34,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._pending = {}
         self._pending_join = []
 
-        self.version = ''
+        self.version: str | None = None
 
     async def connect(self):
         api = await ZiGate.new(self._config[CONF_DEVICE], self)
@@ -40,12 +42,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await api.set_time()
         version, lqi = await api.version()
 
-        hex_version = f"{version[1]:x}"
-        self.version = f"{hex_version[0]}.{hex_version[1:]}"
         self._api = api
 
+        major, minor = version.to_bytes(2, "big")
+        self.version = f"{major:x}.{minor:x}"
+
         if self.version < '3.21':
-            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
+            LOGGER.error('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
 
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
@@ -300,7 +303,7 @@ class ZiGateDevice(zigpy.device.Device):
             model = 'PiZiGate'
         elif c.is_zigate_din(port):
             model = 'ZiGate USB-DIN'
-        self._model = '{} {}'.format(model, application.version)
+        self._model = f'{model} {application.version}'
 
     @property
     def manufacturer(self):
