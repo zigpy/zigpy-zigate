@@ -238,20 +238,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def send_packet(self, packet):
         LOGGER.debug("Sending packet %r", packet)
 
-        if packet.dst.addr_mode == zigpy.types.AddrMode.IEEE:
-            LOGGER.warning("IEEE addressing is not supported, falling back to NWK")
-
-            try:
-                device = self.get_device_with_address(packet.dst)
-            except (KeyError, ValueError):
-                raise ValueError(f"Cannot find device with IEEE {packet.dst.address}")
-
-            packet = packet.replace(
-                dst=zigpy.types.AddrModeAddress(
-                    addr_mode=zigpy.types.AddrMode.NWK, address=device.nwk
-                )
-            )
-
         ack = (zigpy.types.TransmitOptions.ACK in packet.tx_options)
 
         try:
