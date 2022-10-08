@@ -34,7 +34,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._pending = {}
         self._pending_join = []
 
-        self.version: str | None = None
+        self.version: str = ""
 
     async def connect(self):
         api = await ZiGate.new(self._config[CONF_DEVICE], self)
