@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 from typing import Any, Dict, Optional
@@ -32,7 +34,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         self._pending = {}
         self._pending_join = []
 
-        self.version = ''
+        self.version: str = ""
 
     async def connect(self):
         api = await ZiGate.new(self._config[CONF_DEVICE], self)
@@ -40,12 +42,13 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await api.set_time()
         version, lqi = await api.version()
 
-        hex_version = f"{version[1]:x}"
-        self.version = f"{hex_version[0]}.{hex_version[1:]}"
         self._api = api
 
+        major, minor = version.to_bytes(2, "big")
+        self.version = f"{major:x}.{minor:x}"
+
         if self.version < '3.21':
-            LOGGER.warning('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
+            LOGGER.error('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
 
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
@@ -235,20 +238,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def send_packet(self, packet):
         LOGGER.debug("Sending packet %r", packet)
 
-        if packet.dst.addr_mode == zigpy.types.AddrMode.IEEE:
-            LOGGER.warning("IEEE addressing is not supported, falling back to NWK")
-
-            try:
-                device = self.get_device_with_address(packet.dst)
-            except (KeyError, ValueError):
-                raise ValueError(f"Cannot find device with IEEE {packet.dst.address}")
-
-            packet = packet.replace(
-                dst=zigpy.types.AddrModeAddress(
-                    addr_mode=zigpy.types.AddrMode.NWK, address=device.nwk
-                )
-            )
-
         ack = (zigpy.types.TransmitOptions.ACK in packet.tx_options)
 
         try:
@@ -265,11 +254,16 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         except NoResponseError:
             raise zigpy.exceptions.DeliveryError("ZiGate did not respond to command")
 
+        self._pending[tsn] = asyncio.get_running_loop().create_future()
+
         if status != t.Status.Success:
             self._pending.pop(tsn)
-            raise zigpy.exceptions.DeliveryError(f"Failed to deliver packet: {status}", status=status)
 
-        self._pending[tsn] = asyncio.get_running_loop().create_future()
+            # Firmwares 3.1d and below fail to send packets on every request
+            if status == t.Status.InvalidParameter and self.version <= "3.1d":
+                pass
+            else:
+                raise zigpy.exceptions.DeliveryError(f"Failed to send packet: {status}", status=status)
 
         # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
         # try:
@@ -300,7 +294,7 @@ class ZiGateDevice(zigpy.device.Device):
             model = 'PiZiGate'
         elif c.is_zigate_din(port):
             model = 'ZiGate USB-DIN'
-        self._model = '{} {}'.format(model, application.version)
+        self._model = f'{model} {application.version}'
 
     @property
     def manufacturer(self):
