@@ -207,6 +207,52 @@ class Status(uint8_t, enum.Enum):
     # No free BTR entries left.
     NoFreeBTREntries = 0x8B
 
+    # A transmit request failed since the ASDU is too large and fragmentation is not
+    # supported.
+    AsduTooLong = 0xA0
+    # A received fragmented frame could not be defragmented at the current time.
+    DefragDeferred = 0xA1
+    # A received fragmented frame could not be defragmented since the device does not
+    # support fragmentation.
+    DefragUnsupported = 0xA2
+    # A parameter value was out of range.
+    IllegalRequest = 0xA3
+    # An APSME-UNBIND.request failed due to the requested binding link not existing in
+    # the binding table.
+    InvalidBinding = 0xA4
+    # An APSME-REMOVE-GROUP.request has been issued with a group identifier that does
+    # not appear in the group table.
+    InvalidGroup = 0xA5
+    # A parameter value was invalid or out of range.
+    InvalidParameter = 0xA6
+    # An APSDE-DATA.request requesting acknowledged transmission failed due to no
+    # acknowledgement being received.
+    NoAck = 0xA7
+    # An APSDE-DATA.request with a destination addressing mode set to 0x00 failed due to
+    # there being no devices bound to this device.
+    NoBoundDevice = 0xA8
+    # An APSDE-DATA.request with a destination addressing mode set to 0x03 failed due to
+    # no corresponding short address found in the address map table.
+    NoShortAddress = 0xA9
+    # An APSDE-DATA.request with a destination addressing mode set to 0x00 failed due to
+    # a binding table not being supported on the device.
+    NotSupported = 0xAA
+    # An ASDU was received that was secured using a link key.
+    SecuredLinkKey = 0xAB
+    # An ASDU was received that was secured using a network key.
+    SecuredNwkKey = 0xAC
+    # An APSDE-DATA.request requesting security has resulted in an error during the
+    # corresponding security processing.
+    SecurityFail = 0xAD
+    # An APSME-BIND.request or APSME.ADDGROUP.request issued when the binding or group
+    # tables, respectively, were full.
+    TableFull = 0xAE
+    # An ASDU was received without any security.
+    Unsecured = 0xAF
+    # An APSME-GET.request or APSMESET. request has been issued with an unknown
+    # attribute identifier.
+    UnsupportedAttribute = 0xB0
+
     @classmethod
     def _missing_(cls, value):
         if not isinstance(value, int):
