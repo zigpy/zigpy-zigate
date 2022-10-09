@@ -134,3 +134,18 @@ async def test_disconnect_multiple(app):
     await app.disconnect()
 
     assert app._api is None
+
+
+@pytest.mark.asyncio
+@patch("zigpy_zigate.zigbee.application.ZiGate.new")
+@pytest.mark.parametrize("version_rsp, expected_version", [
+    [((261, 798), 0), "3.1e"],
+    [((5, 801), 0), "3.21"]
+])
+async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
+    api = zigate_new.return_value
+    api.version.return_value = version_rsp
+
+    await app.connect()
+
+    assert app.version == expected_version
