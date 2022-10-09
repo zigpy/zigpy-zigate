@@ -1,5 +1,4 @@
-from unittest import mock
-from .async_mock import AsyncMock, MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import logging
@@ -28,7 +27,7 @@ def app():
 
 
 def test_zigpy_ieee(app):
-    cluster = mock.MagicMock()
+    cluster = MagicMock()
     cluster.cluster_id = 0x0000
     data = b"\x01\x02\x03\x04\x05\x06\x07\x08"
 

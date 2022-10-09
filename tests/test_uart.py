@@ -1,4 +1,4 @@
-from .async_mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 import gpiozero
