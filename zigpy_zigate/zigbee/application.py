@@ -40,12 +40,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         api = await ZiGate.new(self._config[CONF_DEVICE], self)
         await api.set_raw_mode()
         await api.set_time()
-        version, lqi = await api.version()
 
-        self._api = api
-
+        (_, version), lqi = await api.version()
         major, minor = version.to_bytes(2, "big")
         self.version = f"{major:x}.{minor:x}"
+
+        self._api = api
 
         if self.version < '3.21':
             LOGGER.error('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')

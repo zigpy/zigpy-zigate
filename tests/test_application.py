@@ -1,5 +1,4 @@
-from unittest import mock
-from .async_mock import AsyncMock, MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import logging
@@ -28,7 +27,7 @@ def app():
 
 
 def test_zigpy_ieee(app):
-    cluster = mock.MagicMock()
+    cluster = MagicMock()
     cluster.cluster_id = 0x0000
     data = b"\x01\x02\x03\x04\x05\x06\x07\x08"
 
@@ -135,3 +134,18 @@ async def test_disconnect_multiple(app):
     await app.disconnect()
 
     assert app._api is None
+
+
+@pytest.mark.asyncio
+@patch("zigpy_zigate.zigbee.application.ZiGate.new")
+@pytest.mark.parametrize("version_rsp, expected_version", [
+    [((261, 798), 0), "3.1e"],
+    [((5, 801), 0), "3.21"]
+])
+async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
+    api = zigate_new.return_value
+    api.version.return_value = version_rsp
+
+    await app.connect()
+
+    assert app.version == expected_version
