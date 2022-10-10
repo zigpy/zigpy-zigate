@@ -290,13 +290,12 @@ class ZiGate:
         self._app = app
 
     def data_received(self, cmd, data, lqi):
-        LOGGER.debug("data received %s %s LQI:%s", hex(cmd),
-                     binascii.hexlify(data), lqi)
         if cmd not in RESPONSES:
-            LOGGER.warning('Received unhandled response 0x%04x', cmd)
+            LOGGER.warning('Received unhandled response 0x%04x: %r', cmd, binascii.hexlify(data))
             return
         cmd = ResponseId(cmd)
         data, rest = t.deserialize(data, RESPONSES[cmd])
+        LOGGER.debug("Response received: %s %s %s (LQI:%s)", cmd, data, rest, lqi)
         if cmd == ResponseId.STATUS:
             if data[2] in self._status_awaiting:
                 fut = self._status_awaiting.pop(data[2])

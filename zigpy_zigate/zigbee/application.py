@@ -40,12 +40,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         api = await ZiGate.new(self._config[CONF_DEVICE], self)
         await api.set_raw_mode()
         await api.set_time()
-        version, lqi = await api.version()
 
-        self._api = api
-
+        (_, version), lqi = await api.version()
         major, minor = version.to_bytes(2, "big")
         self.version = f"{major:x}.{minor:x}"
+
+        self._api = api
 
         if self.version < '3.21':
             LOGGER.error('Old ZiGate firmware detected, you should upgrade to 3.21 or newer')
@@ -243,8 +243,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         try:
             (status, tsn, packet_type, _), _ = await self._api.raw_aps_data_request(
                 addr=packet.dst.address,
-                src_ep=(1 if packet.dst_ep > 0 else 0),  # ZiGate only support endpoint 1
-                dst_ep=packet.dst_ep,
+                src_ep=(1 if packet.dst_ep is None or packet.dst_ep > 0 else 0),  # ZiGate only support endpoint 1
+                dst_ep=packet.dst_ep or 0,
                 profile=packet.profile_id,
                 cluster=packet.cluster_id,
                 payload=packet.data.serialize(),

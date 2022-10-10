@@ -1,13 +1,13 @@
-from unittest import mock
-from .async_mock import AsyncMock, MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import logging
-import zigpy.types as zigpy_types
+import zigpy.types as zigpy_t
 import zigpy.exceptions
 
-import zigpy_zigate.config as config
+import zigpy_zigate.api
 import zigpy_zigate.types as t
+import zigpy_zigate.config as config
 import zigpy_zigate.zigbee.application
 
 APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
@@ -23,17 +23,17 @@ FAKE_FIRMWARE_VERSION = '3.1z'
 def app():
     a = zigpy_zigate.zigbee.application.ControllerApplication(APP_CONFIG)
     a.version = FAKE_FIRMWARE_VERSION
-    a._api = MagicMock()
+    a._api = MagicMock(spec_set=zigpy_zigate.api.ZiGate)
     return a
 
 
 def test_zigpy_ieee(app):
-    cluster = mock.MagicMock()
+    cluster = MagicMock()
     cluster.cluster_id = 0x0000
     data = b"\x01\x02\x03\x04\x05\x06\x07\x08"
 
     zigate_ieee, _ = t.EUI64.deserialize(data)
-    app.state.node_info.ieee = zigpy_types.EUI64(zigate_ieee)
+    app.state.node_info.ieee = zigpy_t.EUI64(zigate_ieee)
 
     dst_addr = app.get_dst_address(cluster)
     assert dst_addr.serialize() == b"\x03" + data[::-1] + b"\x01"
@@ -135,3 +135,28 @@ async def test_disconnect_multiple(app):
     await app.disconnect()
 
     assert app._api is None
+
+
+@pytest.mark.asyncio
+@patch("zigpy_zigate.zigbee.application.ZiGate.new")
+@pytest.mark.parametrize("version_rsp, expected_version", [
+    [((261, 798), 0), "3.1e"],
+    [((5, 801), 0), "3.21"]
+])
+async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
+    api = zigate_new.return_value
+    api.version.return_value = version_rsp
+
+    await app.connect()
+
+    assert app.version == expected_version
+
+
+@pytest.mark.asyncio
+async def test_send_group_request(app):
+    packet = zigpy_t.ZigbeePacket(src=None, src_ep=1, dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.Group, address=0x0002), dst_ep=None, source_route=None, extended_timeout=False, tsn=21, profile_id=260, cluster_id=6, data=zigpy_t.SerializableBytes(b'\x01\x15\x00'), tx_options=zigpy_t.TransmitOptions.NONE, radius=0, non_member_radius=3, lqi=None, rssi=None)
+
+    app._api.raw_aps_data_request.return_value = ([t.Status.Success, 0, 1328, b'\x01\xea\x00\x00'], 0)
+    await app.send_packet(packet)
+
+    app._api.raw_aps_data_request.assert_called_once()

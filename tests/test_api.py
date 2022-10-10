@@ -3,7 +3,7 @@ import sys
 import pytest
 import serial
 import serial_asyncio
-from .async_mock import AsyncMock, MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import zigpy_zigate.config as config
 import zigpy_zigate.uart
