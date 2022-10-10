@@ -243,8 +243,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         try:
             (status, tsn, packet_type, _), _ = await self._api.raw_aps_data_request(
                 addr=packet.dst.address,
-                src_ep=(1 if packet.dst_ep > 0 else 0),  # ZiGate only support endpoint 1
-                dst_ep=packet.dst_ep,
+                src_ep=(1 if packet.dst_ep is None or packet.dst_ep > 0 else 0),  # ZiGate only support endpoint 1
+                dst_ep=packet.dst_ep or 0,
                 profile=packet.profile_id,
                 cluster=packet.cluster_id,
                 payload=packet.data.serialize(),
