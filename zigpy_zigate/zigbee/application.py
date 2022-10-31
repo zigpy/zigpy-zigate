@@ -238,7 +238,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def send_packet(self, packet):
         LOGGER.debug("Sending packet %r", packet)
 
-        ack = (zigpy.types.TransmitOptions.ACK in packet.tx_options)
+        # Firmwares 3.1d and below allow a couple of _NO_ACK packets to send but all
+        # subsequent ones will fail. ACKs must be enabled.
+        ack = (
+            zigpy.types.TransmitOptions.ACK in packet.tx_options
+            or self.version <= "3.1d"
+        )
 
         try:
             (status, tsn, packet_type, _), _ = await self._api.raw_aps_data_request(
@@ -263,7 +268,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             if status == t.Status.InvalidParameter and self.version <= "3.1d":
                 pass
             else:
-                raise zigpy.exceptions.DeliveryError(f"Failed to send packet: {status}", status=status)
+                raise zigpy.exceptions.DeliveryError(f"Failed to send packet: {status!r}", status=status)
 
         # disabled because of https://github.com/fairecasoimeme/ZiGate/issues/324
         # try:
