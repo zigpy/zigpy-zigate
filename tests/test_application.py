@@ -153,6 +153,24 @@ async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("version, addr_mode", [
+    ["3.1z", t.AddressMode.NWK_NO_ACK],
+    ["3.1d", t.AddressMode.NWK],
+])
+async def test_send_unicast_request(app, version, addr_mode):
+    packet = zigpy_t.ZigbeePacket(src=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0x0000), src_ep=1, dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0xFA5D), dst_ep=1, source_route=None, extended_timeout=False, tsn=20, profile_id=260, cluster_id=6, data=zigpy_t.SerializableBytes(b'\x01\x14\x00'), tx_options=zigpy_t.TransmitOptions.NONE, radius=0, non_member_radius=0, lqi=None, rssi=None)
+
+    app.version = version
+    app._api.raw_aps_data_request.return_value = ([t.Status.Success, 163, 1328, b'\x00\x00'], 0)
+    await app.send_packet(packet)
+
+    # The packet was sent with ACKs, even though zigpy didn't ask for it
+    assert app._api.raw_aps_data_request.mock_calls[0].kwargs["addr_mode"] == addr_mode
+
+    app._api.raw_aps_data_request.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_send_group_request(app):
     packet = zigpy_t.ZigbeePacket(src=None, src_ep=1, dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.Group, address=0x0002), dst_ep=None, source_route=None, extended_timeout=False, tsn=21, profile_id=260, cluster_id=6, data=zigpy_t.SerializableBytes(b'\x01\x15\x00'), tx_options=zigpy_t.TransmitOptions.NONE, radius=0, non_member_radius=3, lqi=None, rssi=None)
 
