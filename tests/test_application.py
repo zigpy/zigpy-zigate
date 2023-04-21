@@ -178,3 +178,16 @@ async def test_send_group_request(app):
     await app.send_packet(packet)
 
     app._api.raw_aps_data_request.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_energy_scanning(app, caplog):
+    with caplog.at_level(logging.WARNING):
+        scan_results = await app.energy_scan(channels=zigpy_t.Channels.ALL_CHANNELS, duration_exp=2, count=5)
+
+    assert scan_results == {c: 0 for c in zigpy_t.Channels.ALL_CHANNELS}
+
+    # We never send a request when scanning
+    assert len(app._api.raw_aps_data_request.mock_calls) == 0
+
+    assert "does not support energy scanning" in caplog.text
