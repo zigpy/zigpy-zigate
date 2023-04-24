@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel, call
 
 import pytest
 import logging
@@ -191,3 +191,11 @@ async def test_energy_scanning(app, caplog):
     assert len(app._api.raw_aps_data_request.mock_calls) == 0
 
     assert "does not support energy scanning" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_channel_migration(app, caplog):
+    app._api.set_channel = AsyncMock()
+    await app._move_network_to_channel(17, new_nwk_update_id=2)
+
+    assert app._api.set_channel.mock_calls == [call(17)]

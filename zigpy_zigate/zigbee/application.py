@@ -154,6 +154,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def permit_with_key(self, node, code, time_s = 60):
         LOGGER.warning("ZiGate does not support joins with install codes")
 
+    async def _move_network_to_channel(
+        self, new_channel: int, *, new_nwk_update_id: int
+    ) -> None:
+        """Moves the network to a new channel."""
+        await self._api.set_channel(new_channel)
+
     async def energy_scan(
         self, channels: zigpy.types.Channels, duration_exp: int, count: int
     ) -> dict[int, float]:
