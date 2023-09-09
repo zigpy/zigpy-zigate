@@ -11,6 +11,7 @@ import zigpy.types
 import zigpy.util
 import zigpy.zdo
 import zigpy.exceptions
+import zigpy.zdo.types as zdo_t
 
 import zigpy_zigate
 from zigpy_zigate import types as t
