@@ -66,6 +66,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         # TODO: how do you start the network? Is it always automatically started?
         dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
         self.devices[dev.ieee] = dev
+        await self.register_endpoints()
         await dev.schedule_initialize()
 
     async def load_network_info(self, *, load_devices: bool = False):
@@ -171,9 +172,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
     async def force_remove(self, dev):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
-    async def add_endpoint(self, descriptor):
-        # ZiGate does not support adding new endpoints
-        pass
+    async def add_endpoint(self, descriptor: zdo_t.SimpleDescriptor) -> None:
+        ep = self._device.add_endpoint(descriptor.endpoint)
+        ep.profile_id = descriptor.profile
+        ep.device_type = descriptor.device_type
+        for c in descriptor.input_clusters:
+            ep.add_input_cluster(c)
+        for c in descriptor.output_clusters:
+            ep.add_output_cluster(c)
 
     def zigate_callback_handler(self, msg, response, lqi):
         LOGGER.debug('zigate_callback_handler %s %s', msg, response)
