@@ -4,13 +4,12 @@ import logging
 import struct
 from typing import Any, Dict
 
+import zigpy.config
 import zigpy.serial
 
 from . import common as c
-from .config import CONF_DEVICE_PATH
 
 LOGGER = logging.getLogger(__name__)
-ZIGATE_BAUDRATE = 115200
 
 
 class Gateway(asyncio.Protocol):
@@ -139,7 +138,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     connected_future = asyncio.Future()
     protocol = Gateway(api, connected_future)
 
-    port = device_config[CONF_DEVICE_PATH]
+    port = device_config[zigpy.config.CONF_DEVICE_PATH]
     if port == "auto":
         port = c.discover_port()
 
@@ -159,7 +158,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
         loop,
         lambda: protocol,
         url=port,
-        baudrate=ZIGATE_BAUDRATE,
+        baudrate=device_config[zigpy.config.CONF_DEVICE_BAUDRATE],
         xonxoff=False,
     )
 
