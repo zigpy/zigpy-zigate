@@ -1,16 +1,15 @@
 import asyncio
-import sys
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
+
 import pytest
 import serial
 import serial_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
+from zigpy_zigate import api as zigate_api
 import zigpy_zigate.config as config
 import zigpy_zigate.uart
-from zigpy_zigate import api as zigate_api
 
 DEVICE_CONFIG = config.SCHEMA_DEVICE({config.CONF_DEVICE_PATH: "/dev/null"})
-
 
 
 @pytest.fixture
@@ -60,7 +59,7 @@ async def test_api_new(conn_mck):
 @patch.object(zigate_api.ZiGate, "set_raw_mode", new_callable=AsyncMock)
 @pytest.mark.parametrize(
     "port",
-    ('/dev/null', 'pizigate:/dev/ttyAMA0'),
+    ("/dev/null", "pizigate:/dev/ttyAMA0"),
 )
 async def test_probe_success(mock_raw_mode, port, monkeypatch):
     """Test device probing."""
@@ -69,6 +68,7 @@ async def test_probe_success(mock_raw_mode, port, monkeypatch):
         protocol = protocol_factory()
         loop.call_soon(protocol.connection_made, None)
         return None, protocol
+
     monkeypatch.setattr(serial_asyncio, "create_serial_connection", mock_conn)
     DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
         {zigpy_zigate.config.CONF_DEVICE_PATH: port}

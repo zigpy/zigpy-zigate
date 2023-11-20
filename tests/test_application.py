@@ -1,13 +1,13 @@
-from unittest.mock import AsyncMock, MagicMock, patch, sentinel, call
+import logging
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
-import logging
-import zigpy.types as zigpy_t
 import zigpy.exceptions
+import zigpy.types as zigpy_t
 
 import zigpy_zigate.api
-import zigpy_zigate.types as t
 import zigpy_zigate.config as config
+import zigpy_zigate.types as t
 import zigpy_zigate.zigbee.application
 
 APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
@@ -16,7 +16,7 @@ APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
         config.CONF_DATABASE: None,
     }
 )
-FAKE_FIRMWARE_VERSION = '3.1z'
+FAKE_FIRMWARE_VERSION = "3.1z"
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def test_zigpy_ieee(app):
 
 def test_model_detection(app):
     device = zigpy_zigate.zigbee.application.ZiGateDevice(app, 0, 0)
-    assert device.model == 'ZiGate USB-TTL {}'.format(FAKE_FIRMWARE_VERSION)
+    assert device.model == "ZiGate USB-TTL {}".format(FAKE_FIRMWARE_VERSION)
 
 
 @pytest.mark.asyncio
@@ -52,16 +52,17 @@ async def test_form_network_success(app):
     app._api.reset = AsyncMock()
 
     async def mock_start_network():
-        return [[0x00, 0x1234, 0x0123456789abcdef], 0]
+        return [[0x00, 0x1234, 0x0123456789ABCDEF], 0]
+
     app._api.start_network = mock_start_network
 
     async def mock_get_network_state():
         return [
             [
                 0x0000,
-                t.EUI64([0xef, 0xcd, 0xab, 0x89, 0x67, 0x45, 0x23, 0x01]),
+                t.EUI64([0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01]),
                 0x1234,
-                0x1234abcdef012345,
+                0x1234ABCDEF012345,
                 0x11,
             ],
             0,
@@ -88,11 +89,15 @@ async def test_form_network_failed(app):
     app._api.set_channel = AsyncMock()
     app._api.set_extended_panid = AsyncMock()
     app._api.reset = AsyncMock()
+
     async def mock_start_network():
         return [[0x06], 0]
+
     app._api.start_network = mock_start_network
+
     async def mock_get_network_state():
-        return [[0xffff, 0x0123456789abcdef, 0x1234, 0, 0x11], 0]
+        return [[0xFFFF, 0x0123456789ABCDEF, 0x1234, 0, 0x11], 0]
+
     app._api.get_network_state = mock_get_network_state
 
     with pytest.raises(zigpy.exceptions.FormationFailure):
@@ -139,10 +144,10 @@ async def test_disconnect_multiple(app):
 
 @pytest.mark.asyncio
 @patch("zigpy_zigate.zigbee.application.ZiGate.new")
-@pytest.mark.parametrize("version_rsp, expected_version", [
-    [((261, 798), 0), "3.1e"],
-    [((5, 801), 0), "3.21"]
-])
+@pytest.mark.parametrize(
+    "version_rsp, expected_version",
+    [[((261, 798), 0), "3.1e"], [((5, 801), 0), "3.21"]],
+)
 async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
     api = zigate_new.return_value
     api.version.return_value = version_rsp
@@ -153,15 +158,37 @@ async def test_startup_connect(zigate_new, app, version_rsp, expected_version):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("version, addr_mode", [
-    ["3.1z", t.AddressMode.NWK_NO_ACK],
-    ["3.1d", t.AddressMode.NWK],
-])
+@pytest.mark.parametrize(
+    "version, addr_mode",
+    [
+        ["3.1z", t.AddressMode.NWK_NO_ACK],
+        ["3.1d", t.AddressMode.NWK],
+    ],
+)
 async def test_send_unicast_request(app, version, addr_mode):
-    packet = zigpy_t.ZigbeePacket(src=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0x0000), src_ep=1, dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0xFA5D), dst_ep=1, source_route=None, extended_timeout=False, tsn=20, profile_id=260, cluster_id=6, data=zigpy_t.SerializableBytes(b'\x01\x14\x00'), tx_options=zigpy_t.TransmitOptions.NONE, radius=0, non_member_radius=0, lqi=None, rssi=None)
+    packet = zigpy_t.ZigbeePacket(
+        src=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0x0000),
+        src_ep=1,
+        dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.NWK, address=0xFA5D),
+        dst_ep=1,
+        source_route=None,
+        extended_timeout=False,
+        tsn=20,
+        profile_id=260,
+        cluster_id=6,
+        data=zigpy_t.SerializableBytes(b"\x01\x14\x00"),
+        tx_options=zigpy_t.TransmitOptions.NONE,
+        radius=0,
+        non_member_radius=0,
+        lqi=None,
+        rssi=None,
+    )
 
     app.version = version
-    app._api.raw_aps_data_request.return_value = ([t.Status.Success, 163, 1328, b'\x00\x00'], 0)
+    app._api.raw_aps_data_request.return_value = (
+        [t.Status.Success, 163, 1328, b"\x00\x00"],
+        0,
+    )
     await app.send_packet(packet)
 
     # The packet was sent with ACKs, even though zigpy didn't ask for it
@@ -172,9 +199,28 @@ async def test_send_unicast_request(app, version, addr_mode):
 
 @pytest.mark.asyncio
 async def test_send_group_request(app):
-    packet = zigpy_t.ZigbeePacket(src=None, src_ep=1, dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.Group, address=0x0002), dst_ep=None, source_route=None, extended_timeout=False, tsn=21, profile_id=260, cluster_id=6, data=zigpy_t.SerializableBytes(b'\x01\x15\x00'), tx_options=zigpy_t.TransmitOptions.NONE, radius=0, non_member_radius=3, lqi=None, rssi=None)
+    packet = zigpy_t.ZigbeePacket(
+        src=None,
+        src_ep=1,
+        dst=zigpy_t.AddrModeAddress(addr_mode=zigpy_t.AddrMode.Group, address=0x0002),
+        dst_ep=None,
+        source_route=None,
+        extended_timeout=False,
+        tsn=21,
+        profile_id=260,
+        cluster_id=6,
+        data=zigpy_t.SerializableBytes(b"\x01\x15\x00"),
+        tx_options=zigpy_t.TransmitOptions.NONE,
+        radius=0,
+        non_member_radius=3,
+        lqi=None,
+        rssi=None,
+    )
 
-    app._api.raw_aps_data_request.return_value = ([t.Status.Success, 0, 1328, b'\x01\xea\x00\x00'], 0)
+    app._api.raw_aps_data_request.return_value = (
+        [t.Status.Success, 0, 1328, b"\x01\xea\x00\x00"],
+        0,
+    )
     await app.send_packet(packet)
 
     app._api.raw_aps_data_request.assert_called_once()
@@ -183,7 +229,9 @@ async def test_send_group_request(app):
 @pytest.mark.asyncio
 async def test_energy_scanning(app, caplog):
     with caplog.at_level(logging.WARNING):
-        scan_results = await app.energy_scan(channels=zigpy_t.Channels.ALL_CHANNELS, duration_exp=2, count=5)
+        scan_results = await app.energy_scan(
+            channels=zigpy_t.Channels.ALL_CHANNELS, duration_exp=2, count=5
+        )
 
     assert scan_results == {c: 0 for c in zigpy_t.Channels.ALL_CHANNELS}
 

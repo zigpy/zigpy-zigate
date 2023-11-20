@@ -1,4 +1,5 @@
 import enum
+
 import zigpy.types
 
 
@@ -15,7 +16,7 @@ def deserialize(data, schema):
 
 
 def serialize(data, schema):
-    return b''.join(t(v).serialize() for t, v in zip(schema, data))
+    return b"".join(t(v).serialize() for t, v in zip(schema, data))
 
 
 class Bytes(bytes):
@@ -24,7 +25,7 @@ class Bytes(bytes):
 
     @classmethod
     def deserialize(cls, data):
-        return cls(data), b''
+        return cls(data), b""
 
 
 class LBytes(bytes):
@@ -32,25 +33,24 @@ class LBytes(bytes):
         return uint8_t(len(self)).serialize() + self
 
     @classmethod
-    def deserialize(cls, data, byteorder='big'):
+    def deserialize(cls, data, byteorder="big"):
         _bytes = int.from_bytes(data[:1], byteorder)
-        s = data[1:_bytes + 1]
-        return s, data[_bytes + 1:]
+        s = data[1 : _bytes + 1]
+        return s, data[_bytes + 1 :]
 
 
 class int_t(int):
     _signed = True
     _size = 0
 
-    def serialize(self, byteorder='big'):
+    def serialize(self, byteorder="big"):
         return self.to_bytes(self._size, byteorder, signed=self._signed)
 
     @classmethod
-    def deserialize(cls, data, byteorder='big'):
+    def deserialize(cls, data, byteorder="big"):
         # Work around https://bugs.python.org/issue23640
-        r = cls(int.from_bytes(data[:cls._size],
-                               byteorder, signed=cls._signed))
-        data = data[cls._size:]
+        r = cls(int.from_bytes(data[: cls._size], byteorder, signed=cls._signed))
+        data = data[cls._size :]
         return r, data
 
 
@@ -293,7 +293,7 @@ class Struct:
                 setattr(self, k, v)
 
     def serialize(self):
-        r = b''
+        r = b""
         for field in self._fields:
             if hasattr(self, field[0]):
                 r += getattr(self, field[0]).serialize()
@@ -308,11 +308,11 @@ class Struct:
         return r, data
 
     def __repr__(self):
-        r = '<%s ' % (self.__class__.__name__, )
-        r += ' '.join(
-            ['%s=%s' % (f[0], getattr(self, f[0], None)) for f in self._fields]
+        r = "<{} ".format(self.__class__.__name__)
+        r += " ".join(
+            ["{}={}".format(f[0], getattr(self, f[0], None)) for f in self._fields]
         )
-        r += '>'
+        r += ">"
         return r
 
 
@@ -322,7 +322,6 @@ ZIGPY_TO_ZIGATE_ADDR_MODE = {
     (zigpy.types.AddrMode.IEEE, True): AddressMode.IEEE,
     (zigpy.types.AddrMode.Broadcast, True): AddressMode.BROADCAST,
     (zigpy.types.AddrMode.Group, True): AddressMode.GROUP,
-
     # Without ACKs
     (zigpy.types.AddrMode.NWK, False): AddressMode.NWK_NO_ACK,
     (zigpy.types.AddrMode.IEEE, False): AddressMode.IEEE_NO_ACK,
@@ -338,8 +337,8 @@ ZIGATE_TO_ZIGPY_ADDR_MODE = {
 
 class Address(Struct):
     _fields = [
-        ('address_mode', AddressMode),
-        ('address', EUI64),
+        ("address_mode", AddressMode),
+        ("address", EUI64),
     ]
 
     def __eq__(self, other):
@@ -361,7 +360,9 @@ class Address(Struct):
         zigpy_addr_mode, ack = ZIGATE_TO_ZIGPY_ADDR_MODE[self.address_mode]
 
         return (
-            zigpy.types.AddrModeAddress(addr_mode=zigpy_addr_mode, address=self.address),
+            zigpy.types.AddrModeAddress(
+                addr_mode=zigpy_addr_mode, address=self.address
+            ),
             ack,
         )
 

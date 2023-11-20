@@ -1,9 +1,9 @@
 import asyncio
 import binascii
+import datetime
+import enum
 import functools
 import logging
-import enum
-import datetime
 from typing import Any, Dict
 
 import serial
@@ -77,6 +77,7 @@ class NonFactoryNewRestartStatus(t.uint8_t, enum.Enum):
     Startup = 0
     Running = 1
     Start = 2
+
 
 class FactoryNewRestartStatus(t.uint8_t, enum.Enum):
     Startup = 0
@@ -233,7 +234,7 @@ class ZiGate:
     async def connect(self):
         assert self._uart is None
         self._uart = await zigpy_zigate.uart.connect(self._config, self)
-    
+
     def connection_lost(self, exc: Exception) -> None:
         """Lost serial connection."""
         LOGGER.warning(
@@ -280,10 +281,13 @@ class ZiGate:
         if self._uart:
             self._uart.close()
             self._uart = None
-        
+
     def reconnect(self):
         """Reconnect using saved parameters."""
-        LOGGER.debug("Reconnecting '%s' serial port", self._config[zigpy_zigate.config.CONF_DEVICE_PATH])
+        LOGGER.debug(
+            "Reconnecting '%s' serial port",
+            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
+        )
         return self.connect()
 
     def set_application(self, app):
@@ -291,7 +295,9 @@ class ZiGate:
 
     def data_received(self, cmd, data, lqi):
         if cmd not in RESPONSES:
-            LOGGER.warning('Received unhandled response 0x%04x: %r', cmd, binascii.hexlify(data))
+            LOGGER.warning(
+                "Received unhandled response 0x%04x: %r", cmd, binascii.hexlify(data)
+            )
             return
         cmd = ResponseId(cmd)
         data, rest = t.deserialize(data, RESPONSES[cmd])
@@ -306,7 +312,7 @@ class ZiGate:
         self.handle_callback(cmd, data, lqi)
 
     async def wait_for_status(self, cmd):
-        LOGGER.debug('Wait for status to command %s', cmd)
+        LOGGER.debug("Wait for status to command %s", cmd)
 
         if cmd in self._status_awaiting:
             self._status_awaiting[cmd].cancel()
@@ -322,7 +328,7 @@ class ZiGate:
                 del self._status_awaiting[cmd]
 
     async def wait_for_response(self, wait_response):
-        LOGGER.debug('Wait for response %s', wait_response)
+        LOGGER.debug("Wait for response %s", wait_response)
 
         if wait_response in self._awaiting:
             self._awaiting[wait_response].cancel()
@@ -337,7 +343,14 @@ class ZiGate:
                 self._awaiting[wait_response].cancel()
                 del self._awaiting[wait_response]
 
-    async def command(self, cmd, data=b'', wait_response=None, wait_status=True, timeout=COMMAND_TIMEOUT):
+    async def command(
+        self,
+        cmd,
+        data=b"",
+        wait_response=None,
+        wait_status=True,
+        timeout=COMMAND_TIMEOUT,
+    ):
         async with self._lock:
             tries = 3
 
@@ -358,7 +371,9 @@ class ZiGate:
                 tasks.append(status_task)
 
             if wait_response is not None:
-                response_task = asyncio.create_task(self.wait_for_response(wait_response))
+                response_task = asyncio.create_task(
+                    self.wait_for_response(wait_response)
+                )
                 tasks.append(response_task)
 
             try:
@@ -389,23 +404,27 @@ class ZiGate:
                     elif not wait_response and not wait_status:
                         return
             finally:
-                for t in tasks:
-                    if not t.done():
-                        t.cancel()
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
 
                 await asyncio.gather(*tasks, return_exceptions=True)
 
     async def version(self):
-        return await self.command(CommandId.GET_VERSION, wait_response=ResponseId.VERSION_LIST)
+        return await self.command(
+            CommandId.GET_VERSION, wait_response=ResponseId.VERSION_LIST
+        )
 
     async def version_str(self):
         version, lqi = await self.version()
-        version = '{:x}'.format(version[1])
-        version = '{}.{}'.format(version[0], version[1:])
+        version = "{:x}".format(version[1])
+        version = "{}.{}".format(version[0], version[1:])
         return version
 
     async def get_network_state(self):
-        return await self.command(CommandId.NETWORK_STATE_REQ, wait_response=ResponseId.NETWORK_STATE_RSP)
+        return await self.command(
+            CommandId.NETWORK_STATE_REQ, wait_response=ResponseId.NETWORK_STATE_RSP
+        )
 
     async def set_raw_mode(self, enable=True):
         data = t.serialize([enable], COMMANDS[CommandId.SET_RAWMODE])
@@ -416,12 +435,19 @@ class ZiGate:
         await self.command(CommandId.RESET, wait_response=wait_response)
 
     async def erase_persistent_data(self):
-        await self.command(CommandId.ERASE_PERSISTENT_DATA, wait_status=False, wait_response=ResponseId.PDM_LOADED, timeout=10)
+        await self.command(
+            CommandId.ERASE_PERSISTENT_DATA,
+            wait_status=False,
+            wait_response=ResponseId.PDM_LOADED,
+            timeout=10,
+        )
         await asyncio.sleep(1)
-        await self.command(CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART)
+        await self.command(
+            CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART
+        )
 
     async def set_time(self, dt=None):
-        """ set internal time
+        """set internal time
         if timestamp is None, now is used
         """
         dt = dt or datetime.datetime.now()
@@ -430,7 +456,9 @@ class ZiGate:
         await self.command(CommandId.SET_TIMESERVER, data)
 
     async def get_time_server(self):
-        timestamp, lqi = await self.command(CommandId.GET_TIMESERVER, wait_response=ResponseId.GET_TIMESERVER_LIST)
+        timestamp, lqi = await self.command(
+            CommandId.GET_TIMESERVER, wait_response=ResponseId.GET_TIMESERVER_LIST
+        )
         dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
         return dt
 
@@ -438,14 +466,19 @@ class ZiGate:
         data = t.serialize([enable], COMMANDS[CommandId.SET_LED])
         await self.command(CommandId.SET_LED, data)
 
-    async def set_certification(self, typ='CE'):
-        cert = {'CE': 1, 'FCC': 2}[typ]
+    async def set_certification(self, typ="CE"):
+        cert = {"CE": 1, "FCC": 2}[typ]
         data = t.serialize([cert], COMMANDS[CommandId.SET_CE_FCC])
         await self.command(CommandId.SET_CE_FCC, data)
 
     async def management_network_request(self):
-        data = t.serialize([0x0000, 0x07fff800, 0xff, 5, 0xff, 0x0000], COMMANDS[CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST])
-        return await self.command(CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST)#, wait_response=0x804a, timeout=10)
+        data = t.serialize(
+            [0x0000, 0x07FFF800, 0xFF, 5, 0xFF, 0x0000],
+            COMMANDS[CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST],
+        )
+        return await self.command(
+            CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST, data
+        )  # , wait_response=0x804a, timeout=10)
 
     async def set_tx_power(self, power=63):
         if power > 63:
@@ -453,14 +486,18 @@ class ZiGate:
         if power < 0:
             power = 0
         data = t.serialize([power], COMMANDS[CommandId.AHI_SET_TX_POWER])
-        power, lqi = await self.command(CommandId.AHI_SET_TX_POWER, data, wait_response=CommandId.AHI_SET_TX_POWER_RSP)
+        power, lqi = await self.command(
+            CommandId.AHI_SET_TX_POWER,
+            data,
+            wait_response=CommandId.AHI_SET_TX_POWER_RSP,
+        )
         return power[0]
 
     async def set_channel(self, channels=None):
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
         if not isinstance(channels, list):
             channels = [channels]
-        mask = functools.reduce(lambda acc, x: acc ^ 2 ** x, channels, 0)
+        mask = functools.reduce(lambda acc, x: acc ^ 2**x, channels, 0)
         data = t.serialize([mask], COMMANDS[CommandId.SET_CHANNELMASK])
         await self.command(CommandId.SET_CHANNELMASK, data)
 
@@ -469,29 +506,58 @@ class ZiGate:
         await self.command(CommandId.SET_EXT_PANID, data)
 
     async def get_devices_list(self):
-        (entries,), lqi = await self.command(CommandId.GET_DEVICES_LIST, wait_response=ResponseId.GET_DEVICES_LIST_RSP)
+        (entries,), lqi = await self.command(
+            CommandId.GET_DEVICES_LIST, wait_response=ResponseId.GET_DEVICES_LIST_RSP
+        )
 
         return list(entries or [])
 
     async def permit_join(self, duration=60):
-        data = t.serialize([0x0000, duration, 1], COMMANDS[CommandId.PERMIT_JOINING_REQUEST])
+        data = t.serialize(
+            [0x0000, duration, 1], COMMANDS[CommandId.PERMIT_JOINING_REQUEST]
+        )
         return await self.command(CommandId.PERMIT_JOINING_REQUEST, data)
 
     async def start_network(self):
-        return await self.command(CommandId.START_NETWORK, wait_response=ResponseId.NETWORK_JOINED_FORMED)
+        return await self.command(
+            CommandId.START_NETWORK, wait_response=ResponseId.NETWORK_JOINED_FORMED
+        )
 
     async def remove_device(self, zigate_ieee, ieee):
-        data = t.serialize([zigate_ieee, ieee], COMMANDS[CommandId.NETWORK_REMOVE_DEVICE])
+        data = t.serialize(
+            [zigate_ieee, ieee], COMMANDS[CommandId.NETWORK_REMOVE_DEVICE]
+        )
         return await self.command(CommandId.NETWORK_REMOVE_DEVICE, data)
 
-    async def raw_aps_data_request(self, addr, src_ep, dst_ep, profile,
-                                   cluster, payload, addr_mode=t.AddressMode.NWK, security=SendSecurity.NETWORK, radius=0):
-        '''
+    async def raw_aps_data_request(
+        self,
+        addr,
+        src_ep,
+        dst_ep,
+        profile,
+        cluster,
+        payload,
+        addr_mode=t.AddressMode.NWK,
+        security=SendSecurity.NETWORK,
+        radius=0,
+    ):
+        """
         Send raw APS Data request
-        '''
-        data = t.serialize([addr_mode, addr,
-                           src_ep, dst_ep, cluster, profile,
-                           security, radius, payload], COMMANDS[CommandId.SEND_RAW_APS_DATA_PACKET])
+        """
+        data = t.serialize(
+            [
+                addr_mode,
+                addr,
+                src_ep,
+                dst_ep,
+                cluster,
+                profile,
+                security,
+                radius,
+                payload,
+            ],
+            COMMANDS[CommandId.SEND_RAW_APS_DATA_PACKET],
+        )
         return await self.command(CommandId.SEND_RAW_APS_DATA_PACKET, data)
 
     def handle_callback(self, *args):
@@ -527,8 +593,12 @@ class ZiGate:
     async def _probe(self) -> None:
         """Open port and try sending a command"""
         try:
-            device = next(serial.tools.list_ports.grep(self._config[zigpy_zigate.config.CONF_DEVICE_PATH]))
-            if device.description == 'ZiGate':
+            device = next(
+                serial.tools.list_ports.grep(
+                    self._config[zigpy_zigate.config.CONF_DEVICE_PATH]
+                )
+            )
+            if device.description == "ZiGate":
                 return
         except StopIteration:
             pass
