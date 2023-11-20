@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.metadata
 import logging
 from typing import Any
 
@@ -12,7 +13,6 @@ import zigpy.types
 import zigpy.util
 import zigpy.zdo
 
-import zigpy_zigate
 from zigpy_zigate import common as c, types as t
 from zigpy_zigate.api import PDM_EVENT, NoResponseError, ResponseId, ZiGate
 from zigpy_zigate.config import (
@@ -91,7 +91,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         )
 
         self.state.network_info = zigpy.state.NetworkInfo(
-            source=f"zigpy-zigate@{zigpy_zigate.__version__}",
+            source=f"zigpy-zigate@{importlib.metadata.version('zigpy-zigate')}",
             extended_pan_id=epid,
             pan_id=zigpy.types.PanId(network_state[2]),
             nwk_update_id=0,
