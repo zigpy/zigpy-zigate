@@ -163,8 +163,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 if attempt == 2:
                     raise zigpy.exceptions.FormationFailure() from e
 
-    async def permit_with_key(self, node, code, time_s=60):
-        LOGGER.warning("ZiGate does not support joins with install codes")
+    async def permit_with_link_key(self, node, link_key, time_s=60):
+        LOGGER.warning("ZiGate does not support joins with link keys")
 
     async def _move_network_to_channel(
         self, new_channel: int, *, new_nwk_update_id: int
