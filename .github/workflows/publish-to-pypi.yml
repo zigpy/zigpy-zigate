@@ -1,33 +1,12 @@
-name: Publish distributions to PyPI and TestPyPI
+name: Publish distributions to PyPI
+
 on:
-  push:
-    tags:
-      - "*"
+  release:
+    types:
+      - published
 
 jobs:
-  build-and-publish:
-    name: Build and publish distributions to PyPI and TestPyPI
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v1
-      with:
-        version: 3.8
-    - name: Install wheel
-      run: >-
-        pip install wheel
-    - name: Build
-      run: >-
-        python3 setup.py sdist
-    - name: Publish distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        password: ${{ secrets.PYPI_TOKEN }}
-  update_draft_release:
-    runs-on: ubuntu-latest
-    steps:
-      # Drafts your next Release notes as Pull Requests are merged into "master"
-      - uses: release-drafter/release-drafter@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  shared-build-and-publish:
+    uses: zigpy/workflows/.github/workflows/publish-to-pypi.yml@main
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
