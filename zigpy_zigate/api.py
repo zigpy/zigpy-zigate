@@ -6,6 +6,7 @@ import functools
 import logging
 from typing import Any, Dict
 
+from zigpy.datastructures import PriorityLock
 import zigpy.exceptions
 
 import zigpy_zigate.uart
@@ -217,7 +218,7 @@ class ZiGate:
         self._uart = None
         self._awaiting = {}
         self._status_awaiting = {}
-        self._lock = asyncio.Lock()
+        self._lock = PriorityLock()
 
         self.network_state = None
 
@@ -295,6 +296,14 @@ class ZiGate:
                 self._awaiting[wait_response].cancel()
                 del self._awaiting[wait_response]
 
+    def _get_command_priority(self, cmd):
+        return {
+            # Watchdog command is prioritized
+            CommandId.SET_TIMESERVER: 9999,
+            # APS command is deprioritized
+            CommandId.SEND_RAW_APS_DATA_PACKET: -1,
+        }.get(cmd, 0)
+
     async def command(
         self,
         cmd,
@@ -303,7 +312,7 @@ class ZiGate:
         wait_status=True,
         timeout=COMMAND_TIMEOUT,
     ):
-        async with self._lock:
+        async with self._lock(priority=self._get_command_priority(cmd)):
             tries = 3
 
             tasks = []
