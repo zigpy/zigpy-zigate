@@ -8,6 +8,7 @@ from typing import Any, Dict
 
 import serial
 import zigpy.exceptions
+import zigpy.types
 
 import zigpy_zigate.config
 import zigpy_zigate.uart
@@ -39,6 +40,7 @@ class CommandId(enum.IntEnum):
     MANAGEMENT_NETWORK_UPDATE_REQUEST = 0x004A
     SEND_RAW_APS_DATA_PACKET = 0x0530
     AHI_SET_TX_POWER = 0x0806
+    GET_NETWORK_KEY = 0x0054
 
 
 class ResponseId(enum.IntEnum):
@@ -65,6 +67,7 @@ class ResponseId(enum.IntEnum):
     APS_DATA_CONFIRM_FAILED = 0x8702
     AHI_SET_TX_POWER_RSP = 0x8806
     EXTENDED_ERROR = 0x9999
+    GET_NETWORK_KEY_LIST = 0x8054
 
 
 class SendSecurity(t.uint8_t, enum.Enum):
@@ -142,6 +145,7 @@ RESPONSES = {
     ),
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
     ResponseId.EXTENDED_ERROR: (t.Status,),
+    ResponseId.GET_NETWORK_KEY_LIST: (zigpy.types.KeyData,),
 }
 
 COMMANDS = {
@@ -209,6 +213,10 @@ class NoStatusError(NoResponseError):
 
 
 class CommandError(zigpy.exceptions.APIException):
+    pass
+
+
+class CommandNotSupportedError(CommandError):
     pass
 
 
@@ -567,6 +575,16 @@ class ZiGate:
                 self._app.zigate_callback_handler(*args)
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
+
+    async def get_network_key(self):
+        rsp, _ = await self.command(
+            CommandId.GET_NETWORK_KEY, wait_response=ResponseId.GET_NETWORK_KEY_LIST
+        )
+
+        if rsp[0] == t.Status.UnhandledCommand:
+            raise CommandNotSupportedError()
+
+        return rsp[0]
 
     @classmethod
     async def probe(cls, device_config: Dict[str, Any]) -> bool:
