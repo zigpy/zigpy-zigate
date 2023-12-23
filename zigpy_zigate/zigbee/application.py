@@ -14,7 +14,13 @@ import zigpy.util
 import zigpy.zdo
 
 from zigpy_zigate import common as c, types as t
-from zigpy_zigate.api import PDM_EVENT, NoResponseError, ResponseId, ZiGate
+from zigpy_zigate.api import (
+    PDM_EVENT,
+    CommandNotSupportedError,
+    NoResponseError,
+    ResponseId,
+    ZiGate,
+)
 from zigpy_zigate.config import (
     CONF_DEVICE,
     CONF_DEVICE_PATH,
@@ -90,6 +96,12 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             zigpy.types.uint64_t(network_state[3]).serialize()
         )
 
+        try:
+            network_key_data = await self._api.get_network_key()
+            network_key = zigpy.state.Key(key=network_key_data)
+        except CommandNotSupportedError:
+            network_key = zigpy.state.Key()
+
         self.state.network_info = zigpy.state.NetworkInfo(
             source=f"zigpy-zigate@{importlib.metadata.version('zigpy-zigate')}",
             extended_pan_id=epid,
@@ -99,8 +111,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             channel=network_state[4],
             channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
             security_level=5,
-            # TODO: is it possible to read keys?
-            # network_key=zigpy.state.Key(),
+            network_key=network_key,
             # tc_link_key=zigpy.state.Key(),
             children=[],
             key_table=[],
