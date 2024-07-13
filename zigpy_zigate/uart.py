@@ -140,7 +140,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
 
     port = device_config[zigpy.config.CONF_DEVICE_PATH]
     if port == "auto":
-        port = c.discover_port()
+        port = await loop.run_in_executor(None, c.discover_port)
 
     if c.is_pizigate(port):
         LOGGER.debug("PiZiGate detected")

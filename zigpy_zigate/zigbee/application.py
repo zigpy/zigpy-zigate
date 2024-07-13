@@ -16,6 +16,7 @@ import zigpy.zdo
 from zigpy_zigate import common as c, types as t
 from zigpy_zigate.api import PDM_EVENT, NoResponseError, ResponseId, ZiGate
 
+LIB_VERSION = importlib.metadata.version("zigpy-zigate")
 LOGGER = logging.getLogger(__name__)
 
 
@@ -97,7 +98,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         )
 
         self.state.network_info = zigpy.state.NetworkInfo(
-            source=f"zigpy-zigate@{importlib.metadata.version('zigpy-zigate')}",
+            source=f"zigpy-zigate@{LIB_VERSION}",
             extended_pan_id=epid,
             pan_id=zigpy.types.PanId(network_state[2]),
             nwk_update_id=0,
