@@ -4,9 +4,9 @@ import gpiozero
 import pytest
 import serial.tools.list_ports
 import serial_asyncio
+import zigpy.config
 
 from zigpy_zigate import common, uart
-import zigpy_zigate.config
 
 
 @pytest.fixture
@@ -32,9 +32,7 @@ async def test_connect(port, monkeypatch):
 
     monkeypatch.setattr(serial_asyncio, "create_serial_connection", mock_conn)
     monkeypatch.setattr(common, "set_pizigate_running_mode", AsyncMock())
-    DEVICE_CONFIG = zigpy_zigate.config.SCHEMA_DEVICE(
-        {zigpy_zigate.config.CONF_DEVICE_PATH: port}
-    )
+    DEVICE_CONFIG = zigpy.config.SCHEMA_DEVICE({zigpy.config.CONF_DEVICE_PATH: port})
 
     await uart.connect(DEVICE_CONFIG, api)
 

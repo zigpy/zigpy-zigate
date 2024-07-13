@@ -2,11 +2,11 @@ import logging
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
+import zigpy.config as config
 import zigpy.exceptions
 import zigpy.types as zigpy_t
 
 import zigpy_zigate.api
-import zigpy_zigate.config as config
 import zigpy_zigate.types as t
 import zigpy_zigate.zigbee.application
 
@@ -37,11 +37,6 @@ def test_zigpy_ieee(app):
 
     dst_addr = app.get_dst_address(cluster)
     assert dst_addr.serialize() == b"\x03" + data[::-1] + b"\x01"
-
-
-def test_model_detection(app):
-    device = zigpy_zigate.zigbee.application.ZiGateDevice(app, 0, 0)
-    assert device.model == "ZiGate USB-TTL {}".format(FAKE_FIRMWARE_VERSION)
 
 
 @pytest.mark.asyncio
@@ -76,6 +71,9 @@ async def test_form_network_success(app):
     assert app.state.node_info.ieee == zigpy.types.EUI64.convert(
         "01:23:45:67:89:ab:cd:ef"
     )
+    assert app.state.node_info.version == "3.1z"
+    assert app.state.node_info.model == "ZiGate USB-TTL"
+    assert app.state.node_info.manufacturer == "ZiGate"
     assert app.state.network_info.pan_id == 0x1234
     assert app.state.network_info.extended_pan_id == zigpy.types.ExtendedPanId.convert(
         "12:34:ab:cd:ef:01:23:45"

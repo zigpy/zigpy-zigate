@@ -21,23 +21,12 @@ from zigpy_zigate.api import (
     ResponseId,
     ZiGate,
 )
-from zigpy_zigate.config import (
-    CONF_DEVICE,
-    CONF_DEVICE_PATH,
-    CONFIG_SCHEMA,
-    SCHEMA_DEVICE,
-)
 
 LIB_VERSION = importlib.metadata.version("zigpy-zigate")
 LOGGER = logging.getLogger(__name__)
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
-    SCHEMA = CONFIG_SCHEMA
-    SCHEMA_DEVICE = SCHEMA_DEVICE
-
-    probe = ZiGate.probe
-
     def __init__(self, config: dict[str, Any]):
         super().__init__(zigpy.config.ZIGPY_SCHEMA(config))
         self._api: ZiGate | None = None
@@ -47,8 +36,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         self.version: str = ""
 
+    async def _watchdog_feed(self):
+        await self._api.set_time()
+
     async def connect(self):
-        api = await ZiGate.new(self._config[CONF_DEVICE], self)
+        api = await ZiGate.new(self._config[zigpy.config.CONF_DEVICE], self)
         await api.set_raw_mode()
         await api.set_time()
 
@@ -65,7 +57,6 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def disconnect(self):
         # TODO: how do you stop the network? Is it possible?
-
         if self._api is not None:
             try:
                 await self._api.reset(wait=False)
@@ -77,8 +68,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
     async def start_network(self):
         # TODO: how do you start the network? Is it always automatically started?
-        dev = ZiGateDevice(self, self.state.node_info.ieee, self.state.node_info.nwk)
-        self.devices[dev.ieee] = dev
+        dev = self.add_device(
+            ieee=self.state.node_info.ieee, nwk=self.state.node_info.nwk
+        )
         await dev.schedule_initialize()
 
     async def load_network_info(self, *, load_devices: bool = False):
@@ -87,10 +79,24 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         if not network_state or network_state[3] == 0 or network_state[0] == 0xFFFF:
             raise zigpy.exceptions.NetworkNotFormed()
 
+        port = self._config[zigpy.config.CONF_DEVICE][zigpy.config.CONF_DEVICE_PATH]
+
+        if c.is_zigate_wifi(port):
+            model = "ZiGate WiFi"
+        elif c.is_pizigate(port):
+            model = "PiZiGate"
+        elif c.is_zigate_din(port):
+            model = "ZiGate USB-DIN"
+        else:
+            model = "ZiGate USB-TTL"
+
         self.state.node_info = zigpy.state.NodeInfo(
             nwk=zigpy.types.NWK(network_state[0]),
             ieee=zigpy.types.EUI64(network_state[1]),
             logical_type=zigpy.zdo.types.LogicalType.Coordinator,
+            model=model,
+            manufacturer="ZiGate",
+            version=self.version,
         )
 
         epid, _ = zigpy.types.ExtendedPanId.deserialize(
@@ -332,27 +338,3 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != t.Status.Success:
             await self._api.reset()
-
-
-class ZiGateDevice(zigpy.device.Device):
-    def __init__(self, application, ieee, nwk):
-        """Initialize instance."""
-
-        super().__init__(application, ieee, nwk)
-        port = application._config[CONF_DEVICE][CONF_DEVICE_PATH]
-        model = "ZiGate USB-TTL"
-        if c.is_zigate_wifi(port):
-            model = "ZiGate WiFi"
-        elif c.is_pizigate(port):
-            model = "PiZiGate"
-        elif c.is_zigate_din(port):
-            model = "ZiGate USB-DIN"
-        self._model = f"{model} {application.version}"
-
-    @property
-    def manufacturer(self):
-        return "ZiGate"
-
-    @property
-    def model(self):
-        return self._model

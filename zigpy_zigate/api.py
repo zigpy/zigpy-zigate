@@ -1,16 +1,15 @@
 import asyncio
 import binascii
-import datetime
+from datetime import datetime, timezone
 import enum
 import functools
 import logging
 from typing import Any, Dict
 
-import serial
+from zigpy.datastructures import PriorityLock
 import zigpy.exceptions
 import zigpy.types
 
-import zigpy_zigate.config
 import zigpy_zigate.uart
 
 from . import types as t
@@ -227,8 +226,7 @@ class ZiGate:
         self._uart = None
         self._awaiting = {}
         self._status_awaiting = {}
-        self._lock = asyncio.Lock()
-        self._conn_lost_task = None
+        self._lock = PriorityLock()
 
         self.network_state = None
 
@@ -245,58 +243,13 @@ class ZiGate:
 
     def connection_lost(self, exc: Exception) -> None:
         """Lost serial connection."""
-        LOGGER.warning(
-            "Serial '%s' connection lost unexpectedly: %s",
-            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
-            exc,
-        )
-        self._uart = None
-        if self._conn_lost_task and not self._conn_lost_task.done():
-            self._conn_lost_task.cancel()
-        self._conn_lost_task = asyncio.ensure_future(self._connection_lost())
-
-    async def _connection_lost(self) -> None:
-        """Reconnect serial port."""
-        try:
-            await self._reconnect_till_done()
-        except asyncio.CancelledError:
-            LOGGER.debug("Cancelling reconnection attempt")
-
-    async def _reconnect_till_done(self) -> None:
-        attempt = 1
-        while True:
-            try:
-                await asyncio.wait_for(self.reconnect(), timeout=10)
-                break
-            except (asyncio.TimeoutError, OSError) as exc:
-                wait = 2 ** min(attempt, 5)
-                attempt += 1
-                LOGGER.debug(
-                    "Couldn't re-open '%s' serial port, retrying in %ss: %s",
-                    self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
-                    wait,
-                    str(exc),
-                )
-                await asyncio.sleep(wait)
-
-        LOGGER.debug(
-            "Reconnected '%s' serial port after %s attempts",
-            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
-            attempt,
-        )
+        if self._app is not None:
+            self._app.connection_lost(exc)
 
     def close(self):
         if self._uart:
             self._uart.close()
             self._uart = None
-
-    def reconnect(self):
-        """Reconnect using saved parameters."""
-        LOGGER.debug(
-            "Reconnecting '%s' serial port",
-            self._config[zigpy_zigate.config.CONF_DEVICE_PATH],
-        )
-        return self.connect()
 
     def set_application(self, app):
         self._app = app
@@ -351,6 +304,14 @@ class ZiGate:
                 self._awaiting[wait_response].cancel()
                 del self._awaiting[wait_response]
 
+    def _get_command_priority(self, cmd):
+        return {
+            # Watchdog command is prioritized
+            CommandId.SET_TIMESERVER: 9999,
+            # APS command is deprioritized
+            CommandId.SEND_RAW_APS_DATA_PACKET: -1,
+        }.get(cmd, 0)
+
     async def command(
         self,
         cmd,
@@ -359,7 +320,7 @@ class ZiGate:
         wait_status=True,
         timeout=COMMAND_TIMEOUT,
     ):
-        async with self._lock:
+        async with self._lock(priority=self._get_command_priority(cmd)):
             tries = 3
 
             tasks = []
@@ -454,13 +415,13 @@ class ZiGate:
             CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART
         )
 
-    async def set_time(self, dt=None):
-        """set internal time
-        if timestamp is None, now is used
-        """
-        dt = dt or datetime.datetime.now()
-        timestamp = int((dt - datetime.datetime(2000, 1, 1)).total_seconds())
-        data = t.serialize([timestamp], COMMANDS[CommandId.SET_TIMESERVER])
+    async def set_time(self):
+        """set internal time"""
+        timestamp = (
+            datetime.now(timezone.utc) - datetime(2000, 1, 1, tzinfo=timezone.utc)
+        ).total_seconds()
+
+        data = t.serialize([int(timestamp)], COMMANDS[CommandId.SET_TIMESERVER])
         await self.command(CommandId.SET_TIMESERVER, data)
 
     async def get_time_server(self):
@@ -585,30 +546,3 @@ class ZiGate:
             raise CommandNotSupportedError()
 
         return rsp[0]
-
-    @classmethod
-    async def probe(cls, device_config: Dict[str, Any]) -> bool:
-        """Probe port for the device presence."""
-        api = cls(zigpy_zigate.config.SCHEMA_DEVICE(device_config))
-        try:
-            await asyncio.wait_for(api._probe(), timeout=PROBE_TIMEOUT)
-            return True
-        except (
-            asyncio.TimeoutError,
-            serial.SerialException,
-            zigpy.exceptions.ZigbeeException,
-        ) as exc:
-            LOGGER.debug(
-                "Unsuccessful radio probe of '%s' port",
-                device_config[zigpy_zigate.config.CONF_DEVICE_PATH],
-                exc_info=exc,
-            )
-        finally:
-            api.close()
-
-        return False
-
-    async def _probe(self) -> None:
-        """Open port and try sending a command"""
-        await self.connect()
-        await self.set_raw_mode()
