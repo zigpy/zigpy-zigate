@@ -28,7 +28,7 @@ LOGGER = logging.getLogger(__name__)
 
 class ControllerApplication(zigpy.application.ControllerApplication):
     def __init__(self, config: dict[str, Any]):
-        super().__init__(zigpy.config.ZIGPY_SCHEMA(config))
+        super().__init__(config)
         self._api: ZiGate | None = None
 
         self._pending = {}
