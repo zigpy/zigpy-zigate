@@ -10,12 +10,10 @@ import zigpy_zigate.api
 import zigpy_zigate.types as t
 import zigpy_zigate.zigbee.application
 
-APP_CONFIG = zigpy_zigate.zigbee.application.ControllerApplication.SCHEMA(
-    {
-        config.CONF_DEVICE: {config.CONF_DEVICE_PATH: "/dev/null"},
-        config.CONF_DATABASE: None,
-    }
-)
+APP_CONFIG = {
+    config.CONF_DEVICE: {config.CONF_DEVICE_PATH: "/dev/null"},
+    config.CONF_DATABASE: None,
+}
 FAKE_FIRMWARE_VERSION = "3.1z"
 
 
