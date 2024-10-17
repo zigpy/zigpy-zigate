@@ -162,7 +162,7 @@ def async_run_in_executor(function):
     """Decorator to make a sync function async."""
 
     async def replacement(*args):
-        return asyncio.get_running_loop().run_in_executor(None, function, *args)
+        return await asyncio.get_running_loop().run_in_executor(None, function, *args)
 
     replacement._sync_func = function
 
