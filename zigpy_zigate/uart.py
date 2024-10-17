@@ -142,13 +142,13 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
     if port == "auto":
         port = await loop.run_in_executor(None, c.discover_port)
 
-    if c.is_pizigate(port):
+    if await c.async_is_pizigate(port):
         LOGGER.debug("PiZiGate detected")
         await c.async_set_pizigate_running_mode()
         # in case of pizigate:/dev/ttyAMA0 syntax
         if port.startswith("pizigate:"):
             port = port.replace("pizigate:", "", 1)
-    elif c.is_zigate_din(port):
+    elif await c.async_is_zigate_din(port):
         LOGGER.debug("ZiGate USB DIN detected")
         await c.async_set_zigatedin_running_mode()
     elif c.is_zigate_wifi(port):

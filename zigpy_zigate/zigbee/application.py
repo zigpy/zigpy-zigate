@@ -83,9 +83,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
 
         if c.is_zigate_wifi(port):
             model = "ZiGate WiFi"
-        elif c.is_pizigate(port):
+        elif await c.async_is_pizigate(port):
             model = "PiZiGate"
-        elif c.is_zigate_din(port):
+        elif await c.async_is_zigate_din(port):
             model = "ZiGate USB-DIN"
         else:
             model = "ZiGate USB-TTL"

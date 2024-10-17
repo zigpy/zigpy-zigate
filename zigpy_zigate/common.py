@@ -162,7 +162,7 @@ def async_run_in_executor(function):
     """Decorator to make a sync function async."""
 
     async def replacement(*args):
-        return asyncio.get_running_loop().run_in_executor(None, function, *args)
+        return await asyncio.get_running_loop().run_in_executor(None, function, *args)
 
     replacement._sync_func = function
 
@@ -174,3 +174,5 @@ async_set_pizigate_running_mode = async_run_in_executor(set_pizigate_running_mod
 async_set_pizigate_flashing_mode = async_run_in_executor(set_pizigate_flashing_mode)
 async_set_zigatedin_running_mode = async_run_in_executor(set_zigatedin_running_mode)
 async_set_zigatedin_flashing_mode = async_run_in_executor(set_zigatedin_flashing_mode)
+async_is_pizigate = async_run_in_executor(is_pizigate)
+async_is_zigate_din = async_run_in_executor(is_zigate_din)
