@@ -174,3 +174,5 @@ async_set_pizigate_running_mode = async_run_in_executor(set_pizigate_running_mod
 async_set_pizigate_flashing_mode = async_run_in_executor(set_pizigate_flashing_mode)
 async_set_zigatedin_running_mode = async_run_in_executor(set_zigatedin_running_mode)
 async_set_zigatedin_flashing_mode = async_run_in_executor(set_zigatedin_flashing_mode)
+async_is_pizigate = async_run_in_executor(is_pizigate)
+async_is_zigate_din = async_run_in_executor(is_zigate_din)
