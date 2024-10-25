@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, patch, sentinel
+from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import serial_asyncio
@@ -37,10 +37,13 @@ async def test_connect(monkeypatch):
     await api.connect()
 
 
-def test_close(api):
+@pytest.mark.asyncio
+async def test_disconnect(api):
     uart = api._uart
-    api.close()
-    assert uart.close.call_count == 1
+    uart.disconnect = AsyncMock()
+
+    await api.disconnect()
+    assert uart.disconnect.call_count == 1
     assert api._uart is None
 
 

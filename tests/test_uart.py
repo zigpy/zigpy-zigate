@@ -108,13 +108,6 @@ def test_escape(gw):
     assert r == data_escaped
 
 
-def test_length(gw):
-    data = b"\x80\x10\x00\x05\xaa\x00\x0f?\xf0\xff"
-    length = 5
-    r = gw._length(data)
-    assert r == length
-
-
 def test_checksum(gw):
     data = b"\x00\x0f?\xf0"
     checksum = 0xAA
