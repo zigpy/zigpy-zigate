@@ -12,39 +12,24 @@ from . import common as c
 LOGGER = logging.getLogger(__name__)
 
 
-class Gateway(asyncio.Protocol):
+class Gateway(zigpy.serial.SerialProtocol):
     START = b"\x01"
     END = b"\x03"
 
-    def __init__(self, api, connected_future=None):
-        self._buffer = b""
-        self._connected_future = connected_future
+    def __init__(self, api):
+        super().__init__()
         self._api = api
 
     def connection_lost(self, exc) -> None:
-        """Port was closed expecteddly or unexpectedly."""
-        if self._connected_future and not self._connected_future.done():
-            if exc is None:
-                self._connected_future.set_result(True)
-            else:
-                self._connected_future.set_exception(exc)
-        if exc is None:
-            LOGGER.debug("Closed serial connection")
-            return
+        """Port was closed expectedly or unexpectedly."""
+        super().connection_lost(exc)
 
-        LOGGER.error("Lost serial connection: %s", exc)
-        self._api.connection_lost(exc)
-
-    def connection_made(self, transport):
-        """Callback when the uart is connected"""
-        LOGGER.debug("Connection made")
-        self._transport = transport
-        if self._connected_future:
-            self._connected_future.set_result(True)
+        if self._api is not None:
+            self._api.connection_lost(exc)
 
     def close(self):
-        if self._transport:
-            self._transport.close()
+        super().close()
+        self._api = None
 
     def send(self, cmd, data=b""):
         """Send data, taking care of escaping and framing"""
@@ -60,8 +45,7 @@ class Gateway(asyncio.Protocol):
 
     def data_received(self, data):
         """Callback when there is data received from the uart"""
-        self._buffer += data
-        #         LOGGER.debug('data_received %s', self._buffer)
+        super().data_received(data)
         endpos = self._buffer.find(self.END)
         while endpos != -1:
             startpos = self._buffer.rfind(self.START, 0, endpos)
@@ -71,7 +55,7 @@ class Gateway(asyncio.Protocol):
                 cmd, length, checksum, f_data, lqi = struct.unpack(
                     "!HHB%dsB" % (len(frame) - 6), frame
                 )
-                if self._length(frame) != length:
+                if len(frame) - 5 != length:
                     LOGGER.warning(
                         "Invalid length: %s, data: %s", length, len(frame) - 6
                     )
@@ -126,34 +110,20 @@ class Gateway(asyncio.Protocol):
                 chcksum ^= x
         return chcksum
 
-    def _length(self, frame):
-        length = len(frame) - 5
-        return length
-
 
 async def connect(device_config: Dict[str, Any], api, loop=None):
-    if loop is None:
-        loop = asyncio.get_event_loop()
-
-    connected_future = asyncio.Future()
-    protocol = Gateway(api, connected_future)
-
+    loop = asyncio.get_running_loop()
     port = device_config[zigpy.config.CONF_DEVICE_PATH]
-    if port == "auto":
-        port = await loop.run_in_executor(None, c.discover_port)
 
     if await c.async_is_pizigate(port):
         LOGGER.debug("PiZiGate detected")
         await c.async_set_pizigate_running_mode()
-        # in case of pizigate:/dev/ttyAMA0 syntax
-        if port.startswith("pizigate:"):
-            port = port.replace("pizigate:", "", 1)
+        port = port.replace("pizigate:", "", 1)
     elif await c.async_is_zigate_din(port):
         LOGGER.debug("ZiGate USB DIN detected")
         await c.async_set_zigatedin_running_mode()
-    elif c.is_zigate_wifi(port):
-        LOGGER.debug("ZiGate WiFi detected")
 
+    protocol = Gateway(api)
     _, protocol = await zigpy.serial.create_serial_connection(
         loop,
         lambda: protocol,
@@ -162,6 +132,6 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
         xonxoff=False,
     )
 
-    await connected_future
+    await protocol.wait_until_connected()
 
     return protocol

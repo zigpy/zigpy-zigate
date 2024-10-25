@@ -246,9 +246,9 @@ class ZiGate:
         if self._app is not None:
             self._app.connection_lost(exc)
 
-    def close(self):
-        if self._uart:
-            self._uart.close()
+    async def disconnect(self):
+        if self._uart is not None:
+            await self._uart.disconnect()
             self._uart = None
 
     def set_application(self, app):
