@@ -22,6 +22,8 @@ def gw():
     ("/dev/null", "pizigate:/dev/ttyAMA0"),
 )
 async def test_connect(port, monkeypatch):
+    monkeypatch.setattr(gpiozero.Device, "_default_pin_factory", MagicMock())
+
     api = MagicMock()
 
     async def mock_conn(loop, protocol_factory, url, **kwargs):
