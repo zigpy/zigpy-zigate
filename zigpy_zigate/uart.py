@@ -129,7 +129,7 @@ async def connect(device_config: Dict[str, Any], api, loop=None):
         lambda: protocol,
         url=port,
         baudrate=device_config[zigpy.config.CONF_DEVICE_BAUDRATE],
-        xonxoff=False,
+        flow_control=device_config[zigpy.config.CONF_DEVICE_FLOW_CONTROL],
     )
 
     await protocol.wait_until_connected()
