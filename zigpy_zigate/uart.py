@@ -26,10 +26,7 @@ class Gateway(zigpy.serial.SerialProtocol):
 
         if self._api is not None:
             self._api.connection_lost(exc)
-
-    def close(self):
-        super().close()
-        self._api = None
+            self._api = None
 
     def send(self, cmd, data=b""):
         """Send data, taking care of escaping and framing"""
