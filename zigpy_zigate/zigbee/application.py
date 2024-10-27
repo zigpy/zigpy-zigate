@@ -63,7 +63,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             except Exception as e:
                 LOGGER.warning("Failed to reset before disconnect: %s", e)
             finally:
-                self._api.close()
+                await self._api.disconnect()
                 self._api = None
 
     async def start_network(self):

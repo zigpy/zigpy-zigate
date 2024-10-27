@@ -102,28 +102,28 @@ async def test_form_network_failed(app):
 
 @pytest.mark.asyncio
 async def test_disconnect_success(app):
-    api = MagicMock()
+    api = AsyncMock()
 
     app._api = api
     await app.disconnect()
 
-    api.close.assert_called_once()
+    api.disconnect.assert_called_once()
     assert app._api is None
 
 
 @pytest.mark.asyncio
 async def test_disconnect_failure(app, caplog):
-    api = MagicMock()
-    api.disconnect = MagicMock(side_effect=RuntimeError("Broken"))
+    api = AsyncMock()
+    api.reset = AsyncMock(side_effect=RuntimeError("Broken"))
 
     app._api = api
 
     with caplog.at_level(logging.WARNING):
         await app.disconnect()
 
-    assert "disconnect" in caplog.text
+    assert "Failed to reset before disconnect" in caplog.text
 
-    api.close.assert_called_once()
+    api.disconnect.assert_called_once()
     assert app._api is None
 
 

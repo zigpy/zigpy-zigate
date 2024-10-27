@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import gpiozero
 import pytest
@@ -50,6 +50,12 @@ def test_send(gw):
 def test_close(gw):
     gw.close()
     assert gw._transport.close.call_count == 1
+
+
+def test_connection_lost(gw):
+    exc = RuntimeError()
+    gw.connection_lost(exc)
+    assert gw._api.connection_lost.mock_calls == [call(exc)]
 
 
 def test_data_received_chunk_frame(gw):
@@ -106,13 +112,6 @@ def test_escape(gw):
     data_escaped = b"\x80\x10\x02\x10\x02\x15\xaa\x02\x10\x02\x1f?\xf0\xff"
     r = gw._escape(data)
     assert r == data_escaped
-
-
-def test_length(gw):
-    data = b"\x80\x10\x00\x05\xaa\x00\x0f?\xf0\xff"
-    length = 5
-    r = gw._length(data)
-    assert r == length
 
 
 def test_checksum(gw):
