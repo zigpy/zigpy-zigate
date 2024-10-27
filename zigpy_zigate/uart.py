@@ -20,13 +20,16 @@ class Gateway(zigpy.serial.SerialProtocol):
         super().__init__()
         self._api = api
 
-    def connection_lost(self, exc) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         """Port was closed expectedly or unexpectedly."""
         super().connection_lost(exc)
 
         if self._api is not None:
             self._api.connection_lost(exc)
-            self._api = None
+
+    def close(self):
+        super().close()
+        self._api = None
 
     def send(self, cmd, data=b""):
         """Send data, taking care of escaping and framing"""
