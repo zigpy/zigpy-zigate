@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import binascii
 import logging
 import struct
-from typing import Any, Dict
+from typing import Any
 
 import zigpy.config
 import zigpy.serial
@@ -111,7 +113,7 @@ class Gateway(zigpy.serial.SerialProtocol):
         return chcksum
 
 
-async def connect(device_config: Dict[str, Any], api, loop=None):
+async def connect(device_config: dict[str, Any], api, loop=None):
     loop = asyncio.get_running_loop()
     port = device_config[zigpy.config.CONF_DEVICE_PATH]
 
