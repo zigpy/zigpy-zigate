@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 import gpiozero
 import pytest
@@ -50,6 +50,12 @@ def test_send(gw):
 def test_close(gw):
     gw.close()
     assert gw._transport.close.call_count == 1
+
+
+def test_connection_lost(gw):
+    exc = RuntimeError()
+    gw.connection_lost(exc)
+    assert gw._api.connection_lost.mock_calls == [call(exc)]
 
 
 def test_data_received_chunk_frame(gw):
