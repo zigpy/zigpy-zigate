@@ -2,7 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
-import serial_asyncio
+import serial_asyncio_fast
 import zigpy.config as config
 
 from zigpy_zigate import api as zigate_api
@@ -32,7 +32,7 @@ async def test_connect(monkeypatch):
         loop.call_soon(protocol.connection_made, None)
         return None, protocol
 
-    monkeypatch.setattr(serial_asyncio, "create_serial_connection", mock_conn)
+    monkeypatch.setattr(serial_asyncio_fast, "create_serial_connection", mock_conn)
 
     await api.connect()
 

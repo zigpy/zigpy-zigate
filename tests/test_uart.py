@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 import gpiozero
 import pytest
 import serial.tools.list_ports
-import serial_asyncio
+import serial_asyncio_fast
 import zigpy.config
 
 from zigpy_zigate import common, uart
@@ -32,7 +32,7 @@ async def test_connect(port, monkeypatch):
         assert url.startswith("/") is True
         return None, protocol
 
-    monkeypatch.setattr(serial_asyncio, "create_serial_connection", mock_conn)
+    monkeypatch.setattr(serial_asyncio_fast, "create_serial_connection", mock_conn)
     monkeypatch.setattr(common, "set_pizigate_running_mode", AsyncMock())
     DEVICE_CONFIG = zigpy.config.SCHEMA_DEVICE({zigpy.config.CONF_DEVICE_PATH: port})
 
