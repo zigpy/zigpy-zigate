@@ -1,395 +1,773 @@
+"""
+ZiGate data types for serialization/deserialization
+
+Extended to support ZiGate+ (v2) structures.
+"""
+
+from __future__ import annotations
+
 import enum
-
-import zigpy.types
-
-
-def deserialize(data, schema):
-    result = []
-    for type_ in schema:
-        # value, data = type_.deserialize(data)
-        if data:
-            value, data = type_.deserialize(data)
-        else:
-            value = None
-        result.append(value)
-    return result, data
-
-
-def serialize(data, schema):
-    return b"".join(t(v).serialize() for t, v in zip(schema, data))
-
-
-class Bytes(bytes):
-    def serialize(self):
-        return self
-
-    @classmethod
-    def deserialize(cls, data):
-        return cls(data), b""
-
-
-class LBytes(bytes):
-    def serialize(self):
-        return uint8_t(len(self)).serialize() + self
-
-    @classmethod
-    def deserialize(cls, data, byteorder="big"):
-        _bytes = int.from_bytes(data[:1], byteorder)
-        s = data[1 : _bytes + 1]
-        return s, data[_bytes + 1 :]
+import struct
+from typing import Tuple
 
 
 class int_t(int):
-    _signed = True
-    _size = 0
+    """Base integer type with serialization support"""
 
-    def serialize(self, byteorder="big"):
-        return self.to_bytes(self._size, byteorder, signed=self._signed)
+    _signed = True
+    _size = 1
+    _byteorder = "big"
+
+    def serialize(self) -> bytes:
+        return self.to_bytes(self._size, self._byteorder, signed=self._signed)
 
     @classmethod
-    def deserialize(cls, data, byteorder="big"):
-        # Work around https://bugs.python.org/issue23640
-        r = cls(int.from_bytes(data[: cls._size], byteorder, signed=cls._signed))
-        data = data[cls._size :]
-        return r, data
+    def deserialize(cls, data: bytes) -> Tuple["int_t", int]:
+        value = int.from_bytes(data[: cls._size], cls._byteorder, signed=cls._signed)
+        return cls(value), cls._size
 
 
 class int8s(int_t):
+    _signed = True
     _size = 1
 
 
 class int16s(int_t):
+    _signed = True
     _size = 2
-
-
-class int24s(int_t):
-    _size = 3
 
 
 class int32s(int_t):
+    _signed = True
     _size = 4
-
-
-class int40s(int_t):
-    _size = 5
-
-
-class int48s(int_t):
-    _size = 6
-
-
-class int56s(int_t):
-    _size = 7
 
 
 class int64s(int_t):
+    _signed = True
     _size = 8
 
 
-class uint_t(int_t):
+class uint8_t(int_t):
     _signed = False
-
-
-class uint8_t(uint_t):
     _size = 1
 
 
-class uint16_t(uint_t):
+class uint16_t(int_t):
+    _signed = False
     _size = 2
 
 
-class uint24_t(uint_t):
-    _size = 3
-
-
-class uint32_t(uint_t):
+class uint32_t(int_t):
+    _signed = False
     _size = 4
 
 
-class uint40_t(uint_t):
-    _size = 5
-
-
-class uint48_t(uint_t):
-    _size = 6
-
-
-class uint56_t(uint_t):
-    _size = 7
-
-
-class uint64_t(uint_t):
+class uint64_t(int_t):
+    _signed = False
     _size = 8
 
 
-class EUI64(zigpy.types.EUI64):
-    @classmethod
-    def deserialize(cls, data):
-        r, data = super().deserialize(data)
-        return cls(r[::-1]), data
+class Bytes(bytes):
+    """Raw bytes type - passes through without length prefix"""
 
-    def serialize(self):
-        assert self._length == len(self)
-        return super().serialize()[::-1]
+    def serialize(self) -> bytes:
+        return self
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> Tuple["Bytes", int]:
+        # Consume all remaining data
+        return cls(data), len(data)
+
+
+class LBytes(bytes):
+    """Length-prefixed bytes (1-byte length header)"""
+
+    def serialize(self) -> bytes:
+        return bytes([len(self)]) + self
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> Tuple["LBytes", int]:
+        if len(data) < 1:
+            return cls(b""), 0
+        length = data[0]
+        return cls(data[1 : 1 + length]), 1 + length
+
+
+class EUI64(bytes):
+    """64-bit IEEE address (reversed byte order for display)"""
+
+    def __new__(cls, value=None):
+        if value is None:
+            value = b"\x00" * 8
+        if isinstance(value, str):
+            value = bytes.fromhex(value.replace(":", ""))
+        if isinstance(value, int):
+            value = value.to_bytes(8, "big")
+        if len(value) != 8:
+            raise ValueError(f"EUI64 must be 8 bytes, got {len(value)}")
+        return super().__new__(cls, value)
+
+    def serialize(self) -> bytes:
+        return bytes(reversed(self))
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> Tuple["EUI64", int]:
+        return cls(bytes(reversed(data[:8]))), 8
+
+    def __str__(self) -> str:
+        return ":".join(f"{b:02x}" for b in self)
+
+    def __repr__(self) -> str:
+        return f"EUI64('{self}')"
 
 
 class NWK(uint16_t):
-    def __repr__(self):
-        return "0x{:04x}".format(self)
+    """16-bit network address"""
 
-    def __str__(self):
-        return "0x{:04x}".format(self)
+    def __str__(self) -> str:
+        return f"0x{self:04x}"
+
+    def __repr__(self) -> str:
+        return f"NWK({self})"
 
 
-class AddressMode(uint8_t, enum.Enum):
-    # Address modes used in zigate protocol
+class AddressMode(enum.IntEnum):
+    """Zigbee address modes"""
 
     BOUND = 0x00
     GROUP = 0x01
     NWK = 0x02
     IEEE = 0x03
     BROADCAST = 0x04
-
     NO_TRANSMIT = 0x05
-
     BOUND_NO_ACK = 0x06
-    NWK_NO_ACK = 0x07
-    IEEE_NO_ACK = 0x08
-
-    BOUND_NON_BLOCKING = 0x09
-    BOUND_NON_BLOCKING_NO_ACK = 0x0A
+    NWK_ACK = 0x07
 
 
-class Status(uint8_t, enum.Enum):
-    Success = 0x00
-    IncorrectParams = 0x01
-    UnhandledCommand = 0x02
-    CommandFailed = 0x03
-    Busy = 0x04
-    StackAlreadyStarted = 0x05
+class Status(enum.IntEnum):
+    """ZiGate status codes"""
 
-    # Errors below are due to resource shortage, retrying may succeed OR There are no
-    # free Network PDUs. The number of NPDUs is set in the “Number of NPDUs” property
-    # of the “PDU Manager” section of the config editor
-    ResourceShortage = 0x80
-    # There are no free Application PDUs. The number of APDUs is set in the “Instances”
-    # property of the appropriate “APDU” child of the “PDU Manager” section of the
-    # config editor
-    NoFreeAppPDUs = 0x81
-    # There are no free simultaneous data request handles. The number of handles is set
-    # in the “Maximum Number of Simultaneous Data Requests” field of the “APS layer
-    # configuration” section of the config editor
-    NoFreeDataReqHandles = 0x82
-    # There are no free APS acknowledgement handles. The number of handles is set in
-    # the “Maximum Number of Simultaneous Data Requests with Acks” field of the “APS
-    # layer configuration” section of the config editor
-    NoFreeAPSAckHandles = 0x83
-    # There are no free fragment record handles. The number of handles is set in
-    # the “Maximum Number of Transmitted Simultaneous Fragmented Messages” field of
-    # the “APS layer configuration” section of the config editor
-    NoFreeFragRecHandles = 0x84
-    # There are no free MCPS request descriptors. There are 8 MCPS request descriptors.
-    # These are only ever likely to be exhausted under very heavy network load or when
-    # trying to transmit too many frames too close together.
-    NoFreeMCPSReqDesc = 0x85
-    # The loop back send is currently busy. There can be only one loopback request at a
-    # time.
-    LoopbackSendBusy = 0x86
-    # There are no free entries in the extended address table. The extended address
-    # table is configured in the config editor
-    NoFreeExtAddrTableEntries = 0x87
-    # The simple descriptor does not exist for this endpoint / cluster.
-    SimpleDescDoesNotExist = 0x88
-    # A bad parameter has been found while processing an APSDE request or response
-    BadAPSDEParam = 0x89
-    # No free Routing table entries left
-    NoFreeRoutingTableEntries = 0x8A
-    # No free BTR entries left.
-    NoFreeBTREntries = 0x8B
-
-    # A transmit request failed since the ASDU is too large and fragmentation is not
-    # supported.
-    AsduTooLong = 0xA0
-    # A received fragmented frame could not be defragmented at the current time.
-    DefragDeferred = 0xA1
-    # A received fragmented frame could not be defragmented since the device does not
-    # support fragmentation.
-    DefragUnsupported = 0xA2
-    # A parameter value was out of range.
-    IllegalRequest = 0xA3
-    # An APSME-UNBIND.request failed due to the requested binding link not existing in
-    # the binding table.
-    InvalidBinding = 0xA4
-    # An APSME-REMOVE-GROUP.request has been issued with a group identifier that does
-    # not appear in the group table.
-    InvalidGroup = 0xA5
-    # A parameter value was invalid or out of range.
-    InvalidParameter = 0xA6
-    # An APSDE-DATA.request requesting acknowledged transmission failed due to no
-    # acknowledgement being received.
-    NoAck = 0xA7
-    # An APSDE-DATA.request with a destination addressing mode set to 0x00 failed due to
-    # there being no devices bound to this device.
-    NoBoundDevice = 0xA8
-    # An APSDE-DATA.request with a destination addressing mode set to 0x03 failed due to
-    # no corresponding short address found in the address map table.
-    NoShortAddress = 0xA9
-    # An APSDE-DATA.request with a destination addressing mode set to 0x00 failed due to
-    # a binding table not being supported on the device.
-    NotSupported = 0xAA
-    # An ASDU was received that was secured using a link key.
-    SecuredLinkKey = 0xAB
-    # An ASDU was received that was secured using a network key.
-    SecuredNwkKey = 0xAC
-    # An APSDE-DATA.request requesting security has resulted in an error during the
-    # corresponding security processing.
-    SecurityFail = 0xAD
-    # An APSME-BIND.request or APSME.ADDGROUP.request issued when the binding or group
-    # tables, respectively, were full.
-    TableFull = 0xAE
-    # An ASDU was received without any security.
-    Unsecured = 0xAF
-    # An APSME-GET.request or APSMESET. request has been issued with an unknown
-    # attribute identifier.
-    UnsupportedAttribute = 0xB0
+    SUCCESS = 0x00
+    INCORRECT_PARAMETERS = 0x01
+    UNHANDLED_COMMAND = 0x02
+    COMMAND_FAILED = 0x03
+    BUSY = 0x04
+    STACK_ALREADY_STARTED = 0x05
+    # ... additional status codes
 
     @classmethod
     def _missing_(cls, value):
-        if not isinstance(value, int):
-            raise ValueError(f"{value} is not a valid {cls.__name__}")
-
-        new_member = cls._member_type_.__new__(cls, value)
-        new_member._name_ = f"unknown_0x{value:02X}"
-        new_member._value_ = cls._member_type_(value)
-
-        return new_member
+        # Return a generic status for unknown values
+        obj = int.__new__(cls, value)
+        obj._name_ = f"UNKNOWN_{value:02X}"
+        obj._value_ = value
+        return obj
 
 
-class LogLevel(uint8_t, enum.Enum):
-    Emergency = 0
-    Alert = 1
-    Critical = 2
-    Error = 3
-    Warning = 4
-    Notice = 5
-    Information = 6
-    Debug = 7
+class LogLevel(enum.IntEnum):
+    """Log levels"""
+
+    EMERGENCY = 0
+    ALERT = 1
+    CRITICAL = 2
+    ERROR = 3
+    WARNING = 4
+    NOTICE = 5
+    INFO = 6
+    DEBUG = 7
 
 
 class Struct:
-    _fields = []
+    """Base class for structured data"""
 
-    def __init__(self, *args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], self.__class__):
-            # copy constructor
-            for field in self._fields:
-                if hasattr(args[0], field[0]):
-                    setattr(self, field[0], getattr(args[0], field[0]))
-        elif len(args) == len(self._fields):
-            for arg, field in zip(args, self._fields):
-                setattr(self, field[0], field[1](arg))
-        elif kwargs:
-            for k, v in kwargs.items():
-                setattr(self, k, v)
+    _fields: list[tuple[str, type]] = []
 
-    def serialize(self):
-        r = b""
-        for field in self._fields:
-            if hasattr(self, field[0]):
-                r += getattr(self, field[0]).serialize()
-        return r
+    def __init__(self, **kwargs):
+        for name, _ in self._fields:
+            setattr(self, name, kwargs.get(name, None))
+
+    def serialize(self) -> bytes:
+        result = b""
+        for name, dtype in self._fields:
+            value = getattr(self, name)
+            if hasattr(value, "serialize"):
+                result += value.serialize()
+            elif isinstance(value, bytes):
+                result += value
+            elif isinstance(value, int):
+                result += dtype(value).serialize()
+        return result
 
     @classmethod
-    def deserialize(cls, data):
-        r = cls()
-        for field_name, field_type in cls._fields:
-            v, data = field_type.deserialize(data)
-            setattr(r, field_name, v)
-        return r, data
-
-    def __repr__(self):
-        r = "<{} ".format(self.__class__.__name__)
-        r += " ".join(
-            ["{}={}".format(f[0], getattr(self, f[0], None)) for f in self._fields]
-        )
-        r += ">"
-        return r
+    def deserialize(cls, data: bytes) -> Tuple["Struct", int]:
+        instance = cls()
+        offset = 0
+        for name, dtype in cls._fields:
+            if offset >= len(data):
+                break
+            value, consumed = dtype.deserialize(data[offset:])
+            setattr(instance, name, value)
+            offset += consumed
+        return instance, offset
 
 
-ZIGPY_TO_ZIGATE_ADDR_MODE = {
-    # With ACKs
-    (zigpy.types.AddrMode.NWK, True): AddressMode.NWK,
-    (zigpy.types.AddrMode.IEEE, True): AddressMode.IEEE,
-    (zigpy.types.AddrMode.Broadcast, True): AddressMode.BROADCAST,
-    (zigpy.types.AddrMode.Group, True): AddressMode.GROUP,
-    # Without ACKs
-    (zigpy.types.AddrMode.NWK, False): AddressMode.NWK_NO_ACK,
-    (zigpy.types.AddrMode.IEEE, False): AddressMode.IEEE_NO_ACK,
-    (zigpy.types.AddrMode.Broadcast, False): AddressMode.BROADCAST,
-    (zigpy.types.AddrMode.Group, False): AddressMode.GROUP,
-}
+class Address:
+    """Variable-length address based on mode"""
 
-ZIGATE_TO_ZIGPY_ADDR_MODE = {
-    zigate_addr: (zigpy_addr, ack)
-    for (zigpy_addr, ack), zigate_addr in ZIGPY_TO_ZIGATE_ADDR_MODE.items()
-}
+    def __init__(self, mode: AddressMode = AddressMode.NWK, address=None):
+        self.mode = mode
+        self.address = address
 
-
-class Address(Struct):
-    _fields = [
-        ("address_mode", AddressMode),
-        ("address", EUI64),
-    ]
-
-    def __eq__(self, other):
-        return other.address_mode == self.address_mode and other.address == self.address
+    def serialize(self) -> bytes:
+        if self.mode == AddressMode.IEEE:
+            if isinstance(self.address, EUI64):
+                return self.address.serialize()
+            return EUI64(self.address).serialize()
+        elif self.mode in (AddressMode.NWK, AddressMode.GROUP):
+            if isinstance(self.address, NWK):
+                return self.address.serialize()
+            return NWK(self.address).serialize()
+        return b""
 
     @classmethod
-    def deserialize(cls, data):
-        r = cls()
-        r.address_mode, data = AddressMode.deserialize(data)
-
-        if r.address_mode in (AddressMode.IEEE, AddressMode.IEEE_NO_ACK):
-            r.address, data = EUI64.deserialize(data)
+    def deserialize(cls, data: bytes, mode: AddressMode = None) -> Tuple["Address", int]:
+        if mode == AddressMode.IEEE:
+            addr, consumed = EUI64.deserialize(data)
+            return cls(mode, addr), consumed
         else:
-            r.address, data = NWK.deserialize(data)
+            addr, consumed = NWK.deserialize(data)
+            return cls(AddressMode.NWK, addr), consumed
 
-        return r, data
 
-    def to_zigpy_type(self):
-        zigpy_addr_mode, ack = ZIGATE_TO_ZIGPY_ADDR_MODE[self.address_mode]
+class DeviceEntry:
+    """Device entry from device list"""
 
+    def __init__(self):
+        self.id = 0
+        self.nwk = NWK(0)
+        self.ieee = EUI64()
+        self.power_source = 0
+        self.link_quality = 0
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> Tuple["DeviceEntry", int]:
+        if len(data) < 13:
+            raise ValueError("DeviceEntry requires 13 bytes")
+
+        entry = cls()
+        entry.id = data[0]
+        entry.nwk = NWK(int.from_bytes(data[1:3], "big"))
+        entry.ieee = EUI64(bytes(reversed(data[3:11])))
+        entry.power_source = data[11]
+        entry.link_quality = data[12]
+        return entry, 13
+
+
+class DeviceEntryArray(list):
+    """Array of device entries"""
+
+    @classmethod
+    def deserialize(cls, data: bytes) -> Tuple["DeviceEntryArray", int]:
+        entries = cls()
+        offset = 0
+        while offset + 13 <= len(data):
+            entry, consumed = DeviceEntry.deserialize(data[offset:])
+            entries.append(entry)
+            offset += consumed
+        return entries, offset
+
+
+# =============================================================================
+# ZiGate+ (v2) Network Recovery Structure
+# =============================================================================
+
+class NetworkRecoveryData(Struct):
+    """
+    Network Recovery Data Structure for ZiGate+ (v2).
+
+    This structure contains all essential network information needed for
+    backup and restore of the coordinator state. Total size: 72 bytes.
+
+    Matches tsNwkRecovery in firmware app_network_recovery.h
+    """
+
+    _fields = [
+        # Header (4 bytes)
+        ("version", uint8_t),
+        ("reserved1", uint8_t),
+        ("reserved2", uint8_t),
+        ("reserved3", uint8_t),
+        # Network Identification (20 bytes)
+        ("ext_pan_id", uint64_t),
+        ("ieee_address", uint64_t),
+        ("pan_id", uint16_t),
+        ("nwk_address", uint16_t),
+        # Network Parameters (4 bytes)
+        ("channel", uint8_t),
+        ("nwk_update_id", uint8_t),
+        ("depth", uint8_t),
+        ("capability_info", uint8_t),
+        # Security (20 bytes)
+        # Note: nwk_key is 16 bytes, handled specially
+        ("active_key_seq_num", uint8_t),
+        ("security_level", uint8_t),
+        ("reserved4", uint8_t),
+        ("reserved5", uint8_t),
+        # Frame Counters (8 bytes)
+        ("outgoing_frame_counter", uint32_t),
+        ("aps_frame_counter", uint32_t),
+        # Trust Center (8 bytes)
+        ("trust_center_address", uint64_t),
+    ]
+
+    NWK_KEY_OFFSET = 28  # Offset of network key in structure
+    NWK_KEY_LENGTH = 16  # Length of network key
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.nwk_key = kwargs.get("nwk_key", b"\x00" * self.NWK_KEY_LENGTH)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "NetworkRecoveryData":
+        """Parse network recovery data from raw bytes"""
+        if len(data) != 72:
+            raise ValueError(f"Expected 72 bytes, got {len(data)}")
+
+        instance = cls()
+
+        # Parse header
+        instance.version = data[0]
+        instance.reserved1 = data[1]
+        instance.reserved2 = data[2]
+        instance.reserved3 = data[3]
+
+        # Parse network identification
+        instance.ext_pan_id = int.from_bytes(data[4:12], "big")
+        instance.ieee_address = int.from_bytes(data[12:20], "big")
+        instance.pan_id = int.from_bytes(data[20:22], "big")
+        instance.nwk_address = int.from_bytes(data[22:24], "big")
+
+        # Parse network parameters
+        instance.channel = data[24]
+        instance.nwk_update_id = data[25]
+        instance.depth = data[26]
+        instance.capability_info = data[27]
+
+        # Parse security
+        instance.nwk_key = data[28:44]
+        instance.active_key_seq_num = data[44]
+        instance.security_level = data[45]
+        instance.reserved4 = data[46]
+        instance.reserved5 = data[47]
+
+        # Parse frame counters
+        instance.outgoing_frame_counter = int.from_bytes(data[48:52], "big")
+        instance.aps_frame_counter = int.from_bytes(data[52:56], "big")
+
+        # Parse trust center
+        instance.trust_center_address = int.from_bytes(data[56:64], "big")
+
+        return instance
+
+    def to_bytes(self) -> bytes:
+        """Serialize network recovery data to raw bytes"""
+        data = bytearray(72)
+
+        # Header
+        data[0] = self.version or 1
+        data[1] = self.reserved1 or 0
+        data[2] = self.reserved2 or 0
+        data[3] = self.reserved3 or 0
+
+        # Network identification
+        data[4:12] = (self.ext_pan_id or 0).to_bytes(8, "big")
+        data[12:20] = (self.ieee_address or 0).to_bytes(8, "big")
+        data[20:22] = (self.pan_id or 0).to_bytes(2, "big")
+        data[22:24] = (self.nwk_address or 0).to_bytes(2, "big")
+
+        # Network parameters
+        data[24] = self.channel or 0
+        data[25] = self.nwk_update_id or 0
+        data[26] = self.depth or 0
+        data[27] = self.capability_info or 0
+
+        # Security
+        if self.nwk_key:
+            data[28:44] = self.nwk_key[:16].ljust(16, b"\x00")
+        data[44] = self.active_key_seq_num or 0
+        data[45] = self.security_level or 0
+        data[46] = self.reserved4 or 0
+        data[47] = self.reserved5 or 0
+
+        # Frame counters
+        data[48:52] = (self.outgoing_frame_counter or 0).to_bytes(4, "big")
+        data[52:56] = (self.aps_frame_counter or 0).to_bytes(4, "big")
+
+        # Trust center
+        data[56:64] = (self.trust_center_address or 0).to_bytes(8, "big")
+
+        # Padding
+        data[64:72] = b"\x00" * 8
+
+        return bytes(data)
+
+    def __repr__(self) -> str:
         return (
-            zigpy.types.AddrModeAddress(
-                addr_mode=zigpy_addr_mode, address=self.address
-            ),
-            ack,
+            f"NetworkRecoveryData("
+            f"version={self.version}, "
+            f"pan_id=0x{self.pan_id or 0:04x}, "
+            f"ext_pan_id=0x{self.ext_pan_id or 0:016x}, "
+            f"channel={self.channel}, "
+            f"nwk_address=0x{self.nwk_address or 0:04x})"
         )
 
 
-class DeviceEntry(Struct):
-    _fields = [
-        ("id", uint8_t),
-        ("short_addr", NWK),
-        ("ieee_addr", EUI64),
-        ("power_source", uint8_t),
-        ("link_quality", uint8_t),
-    ]
+# =============================================================================
+# OTA (Over-The-Air Update) Structures
+# =============================================================================
+
+# OTA file identifier (magic number)
+OTA_FILE_IDENTIFIER = 0x0BEEF11E
+
+# OTA header versions
+OTA_HEADER_VERSION_ZIGBEE = 0x0100
 
 
-class DeviceEntryArray(tuple):
+class OTAImageHeader:
+    """
+    OTA Image Header Structure.
+
+    This structure contains the OTA upgrade image header as defined by the
+    Zigbee OTA cluster specification (ZCL 6.0, Clause 11).
+
+    Standard header size: 56 bytes (without optional fields)
+    """
+
+    # Header field control bits
+    FIELD_CTRL_SECURITY_CREDENTIAL = 0x01
+    FIELD_CTRL_DEVICE_SPECIFIC = 0x02
+    FIELD_CTRL_HARDWARE_VERSION = 0x04
+
+    def __init__(self):
+        # Mandatory fields (always present)
+        self.file_identifier = OTA_FILE_IDENTIFIER
+        self.header_version = OTA_HEADER_VERSION_ZIGBEE
+        self.header_length = 56  # Minimum header length
+        self.header_control_field = 0
+        self.manufacturer_code = 0
+        self.image_type = 0
+        self.file_version = 0
+        self.stack_version = 0
+        self.header_string = b"\x00" * 32
+        self.total_image_size = 0
+
+        # Optional fields (presence indicated by header_control_field)
+        self.security_credential_version = 0
+        self.upgrade_file_destination = 0
+        self.min_hardware_version = 0
+        self.max_hardware_version = 0
+
     @classmethod
-    def deserialize(cls, data):
-        if len(data) % 13 != 0:
-            raise ValueError("Data is not an array of DeviceEntry")
+    def from_bytes(cls, data: bytes) -> "OTAImageHeader":
+        """Parse OTA image header from raw bytes"""
+        if len(data) < 56:
+            raise ValueError(f"OTA header requires at least 56 bytes, got {len(data)}")
 
-        entries = []
+        instance = cls()
 
-        while data:
-            entry, data = DeviceEntry.deserialize(data)
-            entries.append(entry)
+        # Parse mandatory fields
+        instance.file_identifier = int.from_bytes(data[0:4], "little")
+        if instance.file_identifier != OTA_FILE_IDENTIFIER:
+            raise ValueError(
+                f"Invalid OTA file identifier: 0x{instance.file_identifier:08X}"
+            )
 
-        return cls(entries), data
+        instance.header_version = int.from_bytes(data[4:6], "little")
+        instance.header_length = int.from_bytes(data[6:8], "little")
+        instance.header_control_field = int.from_bytes(data[8:10], "little")
+        instance.manufacturer_code = int.from_bytes(data[10:12], "little")
+        instance.image_type = int.from_bytes(data[12:14], "little")
+        instance.file_version = int.from_bytes(data[14:18], "little")
+        instance.stack_version = int.from_bytes(data[18:20], "little")
+        instance.header_string = data[20:52].rstrip(b"\x00")
+        instance.total_image_size = int.from_bytes(data[52:56], "little")
 
-    def serialize(self):
-        return b"".join([e.serialize() for e in self])
+        # Parse optional fields based on header_control_field
+        offset = 56
+
+        if instance.header_control_field & cls.FIELD_CTRL_SECURITY_CREDENTIAL:
+            if offset < len(data):
+                instance.security_credential_version = data[offset]
+                offset += 1
+
+        if instance.header_control_field & cls.FIELD_CTRL_DEVICE_SPECIFIC:
+            if offset + 8 <= len(data):
+                instance.upgrade_file_destination = int.from_bytes(
+                    data[offset : offset + 8], "little"
+                )
+                offset += 8
+
+        if instance.header_control_field & cls.FIELD_CTRL_HARDWARE_VERSION:
+            if offset + 4 <= len(data):
+                instance.min_hardware_version = int.from_bytes(
+                    data[offset : offset + 2], "little"
+                )
+                instance.max_hardware_version = int.from_bytes(
+                    data[offset + 2 : offset + 4], "little"
+                )
+                offset += 4
+
+        return instance
+
+    def to_bytes(self) -> bytes:
+        """Serialize OTA image header to raw bytes"""
+        data = bytearray()
+
+        # Mandatory fields
+        data.extend(self.file_identifier.to_bytes(4, "little"))
+        data.extend(self.header_version.to_bytes(2, "little"))
+        data.extend(self.header_length.to_bytes(2, "little"))
+        data.extend(self.header_control_field.to_bytes(2, "little"))
+        data.extend(self.manufacturer_code.to_bytes(2, "little"))
+        data.extend(self.image_type.to_bytes(2, "little"))
+        data.extend(self.file_version.to_bytes(4, "little"))
+        data.extend(self.stack_version.to_bytes(2, "little"))
+
+        # Header string (32 bytes, padded with zeros)
+        header_str = self.header_string[:32].ljust(32, b"\x00")
+        data.extend(header_str)
+
+        data.extend(self.total_image_size.to_bytes(4, "little"))
+
+        # Optional fields
+        if self.header_control_field & self.FIELD_CTRL_SECURITY_CREDENTIAL:
+            data.append(self.security_credential_version)
+
+        if self.header_control_field & self.FIELD_CTRL_DEVICE_SPECIFIC:
+            data.extend(self.upgrade_file_destination.to_bytes(8, "little"))
+
+        if self.header_control_field & self.FIELD_CTRL_HARDWARE_VERSION:
+            data.extend(self.min_hardware_version.to_bytes(2, "little"))
+            data.extend(self.max_hardware_version.to_bytes(2, "little"))
+
+        return bytes(data)
+
+    @property
+    def image_key(self) -> tuple:
+        """Return unique key for this image (manufacturer, image_type, version)"""
+        return (self.manufacturer_code, self.image_type, self.file_version)
+
+    def __repr__(self) -> str:
+        return (
+            f"OTAImageHeader("
+            f"manufacturer=0x{self.manufacturer_code:04X}, "
+            f"image_type=0x{self.image_type:04X}, "
+            f"version=0x{self.file_version:08X}, "
+            f"size={self.total_image_size})"
+        )
+
+
+class OTABlockRequest:
+    """
+    OTA Block Request from a device.
+
+    Received when a device requests an image block during OTA upgrade.
+
+    ZiGate firmware format for 0x8501 response (from app_zcl_event_handler.c):
+
+    CLUSTER_CUSTOM prefix (4 bytes):
+    - Byte 0:      u8TransactionSequenceNumber
+    - Byte 1:      u8SrcEndpoint
+    - Bytes 2-3:   u16ClusterEnum (big-endian, 0x0019 for OTA)
+
+    OTA Block Request data:
+    - Byte 4:      u8SrcAddrMode
+    - Bytes 5-6:   u16NwkAddr (big-endian)
+    - Bytes 7-14:  u64RequestNodeAddress (IEEE, big-endian)
+    - Bytes 15-18: u32FileOffset (big-endian)
+    - Bytes 19-22: u32FileVersion (big-endian)
+    - Bytes 23-24: u16ImageType (big-endian)
+    - Bytes 25-26: u16ManufacturerCode (big-endian)
+    - Bytes 27-28: u16BlockRequestDelay (big-endian)
+    - Byte 29:     u8MaxDataSize
+    - Byte 30:     u8FieldControl
+    - Byte 31:     u8LinkQuality (added by SerialLink)
+    """
+
+    def __init__(self):
+        self.seq_no = 0
+        self.src_endpoint = 0
+        self.cluster_id = 0x0019  # OTA cluster
+        self.addr_mode = 0
+        self.address = 0
+        self.ieee_address = 0
+        self.file_offset = 0
+        self.file_version = 0
+        self.image_type = 0
+        self.manufacturer_code = 0
+        self.block_request_delay = 0
+        self.max_data_size = 64
+        self.field_control = 0
+        self.lqi = 0
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "OTABlockRequest":
+        """Create from raw bytes received from ZiGate firmware"""
+        instance = cls()
+        if len(data) < 31:
+            return instance
+
+        # Parse prefix
+        instance.seq_no = data[0]
+        instance.src_endpoint = data[1]
+        instance.cluster_id = int.from_bytes(data[2:4], "big")
+
+        # Parse OTA data (starting at offset 4)
+        instance.addr_mode = data[4]
+        instance.address = int.from_bytes(data[5:7], "big")
+        instance.ieee_address = int.from_bytes(data[7:15], "big")
+        instance.file_offset = int.from_bytes(data[15:19], "big")
+        instance.file_version = int.from_bytes(data[19:23], "big")
+        instance.image_type = int.from_bytes(data[23:25], "big")
+        instance.manufacturer_code = int.from_bytes(data[25:27], "big")
+        instance.block_request_delay = int.from_bytes(data[27:29], "big")
+        instance.max_data_size = data[29]
+        instance.field_control = data[30] if len(data) > 30 else 0
+        instance.lqi = data[31] if len(data) > 31 else 0
+
+        return instance
+
+    @classmethod
+    def from_response(cls, response: tuple) -> "OTABlockRequest":
+        """Create from parsed response tuple (legacy method)"""
+        instance = cls()
+        if len(response) >= 11:
+            instance.src_endpoint = response[0]
+            instance.cluster_id = response[1]
+            instance.addr_mode = response[2]
+            instance.address = response[3]
+            instance.file_offset = response[4]
+            instance.file_version = response[5]
+            instance.image_type = response[6]
+            instance.manufacturer_code = response[7]
+            instance.block_request_delay = response[8]
+            instance.max_data_size = response[9]
+            instance.field_control = response[10]
+        return instance
+
+    @property
+    def nwk_address(self) -> int:
+        """Get network address from response"""
+        if hasattr(self.address, "address"):
+            return self.address.address
+        return self.address
+
+    def __repr__(self) -> str:
+        return (
+            f"OTABlockRequest("
+            f"addr=0x{self.nwk_address:04X}, "
+            f"offset={self.file_offset}, "
+            f"manufacturer=0x{self.manufacturer_code:04X}, "
+            f"image_type=0x{self.image_type:04X})"
+        )
+
+
+class OTAUpgradeEndRequest:
+    """
+    OTA Upgrade End Request from a device.
+
+    Received when a device has finished downloading the image and is
+    ready to apply the upgrade.
+
+    ZiGate firmware format for 0x8503 response (from app_zcl_event_handler.c):
+
+    CLUSTER_CUSTOM prefix (4 bytes):
+    - Byte 0:      u8TransactionSequenceNumber
+    - Byte 1:      u8SrcEndpoint
+    - Bytes 2-3:   u16ClusterEnum (big-endian, 0x0019 for OTA)
+
+    OTA Upgrade End Request data:
+    - Byte 4:      u8SrcAddrMode
+    - Bytes 5-6:   u16NwkAddr (big-endian)
+    - Bytes 7-10:  u32FileVersion (big-endian)
+    - Bytes 11-12: u16ImageType (big-endian)
+    - Bytes 13-14: u16ManufacturerCode (big-endian)
+    - Byte 15:     u8Status
+    - Byte 16:     u8LinkQuality (added by SerialLink)
+    """
+
+    # Status codes
+    STATUS_SUCCESS = 0x00
+    STATUS_ABORT = 0x95
+    STATUS_REQUIRE_MORE_IMAGE = 0x99
+
+    def __init__(self):
+        self.seq_no = 0
+        self.src_endpoint = 0
+        self.cluster_id = 0x0019
+        self.addr_mode = 0
+        self.address = 0
+        self.file_version = 0
+        self.image_type = 0
+        self.manufacturer_code = 0
+        self.status = 0
+        self.lqi = 0
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "OTAUpgradeEndRequest":
+        """Create from raw bytes received from ZiGate firmware"""
+        instance = cls()
+        if len(data) < 16:
+            return instance
+
+        # Parse prefix
+        instance.seq_no = data[0]
+        instance.src_endpoint = data[1]
+        instance.cluster_id = int.from_bytes(data[2:4], "big")
+
+        # Parse OTA data (starting at offset 4)
+        instance.addr_mode = data[4]
+        instance.address = int.from_bytes(data[5:7], "big")
+        instance.file_version = int.from_bytes(data[7:11], "big")
+        instance.image_type = int.from_bytes(data[11:13], "big")
+        instance.manufacturer_code = int.from_bytes(data[13:15], "big")
+        instance.status = data[15]
+        instance.lqi = data[16] if len(data) > 16 else 0
+
+        return instance
+
+    @classmethod
+    def from_response(cls, response: tuple) -> "OTAUpgradeEndRequest":
+        """Create from parsed response tuple (legacy method)"""
+        instance = cls()
+        if len(response) >= 8:
+            instance.src_endpoint = response[0]
+            instance.cluster_id = response[1]
+            instance.addr_mode = response[2]
+            instance.address = response[3]
+            instance.file_version = response[4]
+            instance.image_type = response[5]
+            instance.manufacturer_code = response[6]
+            instance.status = response[7]
+        return instance
+
+    @property
+    def nwk_address(self) -> int:
+        """Get network address from response"""
+        if hasattr(self.address, "address"):
+            return self.address.address
+        return self.address
+
+    @property
+    def success(self) -> bool:
+        """Check if upgrade was successful"""
+        return self.status == self.STATUS_SUCCESS
+
+    def __repr__(self) -> str:
+        return (
+            f"OTAUpgradeEndRequest("
+            f"addr=0x{self.nwk_address:04X}, "
+            f"status=0x{self.status:02X}, "
+            f"manufacturer=0x{self.manufacturer_code:04X}, "
+            f"image_type=0x{self.image_type:04X})"
+        )
