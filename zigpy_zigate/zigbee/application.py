@@ -83,15 +83,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await dev.schedule_initialize()
 
     async def load_network_info(self, *, load_devices: bool = False):
-        # Try Network Recovery for ZiGate+ v2 (firmware 3.24+)
-        recovery = None
+        # Use Network Recovery for ZiGate+ v2 (firmware 3.24+)
         if self.version >= MIN_VERSION_NETWORK_RECOVERY:
-            try:
-                recovery = await self._api.network_recovery_extract()
-            except CommandNotSupportedError:
-                pass
-
-        if recovery is not None:
+            recovery = await self._api.network_recovery_extract()
             await self._load_network_info_from_recovery(recovery, load_devices)
         else:
             await self._load_network_info_legacy(load_devices)
@@ -252,16 +246,11 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             self.version >= MIN_VERSION_NETWORK_RECOVERY
             and "recovery_data" in network_info.stack_specific
         ):
-            try:
-                recovery_bytes = bytes.fromhex(
-                    network_info.stack_specific["recovery_data"]
-                )
-                recovery, _ = t.NetworkRecovery.deserialize(recovery_bytes)
-                await self._api.network_recovery_restore(recovery)
-                LOGGER.info("Network restored via Network Recovery")
-                return
-            except (CommandNotSupportedError, ValueError, KeyError) as e:
-                LOGGER.warning("Network Recovery restore failed: %s", e)
+            recovery_bytes = bytes.fromhex(network_info.stack_specific["recovery_data"])
+            recovery, _ = t.NetworkRecovery.deserialize(recovery_bytes)
+            await self._api.network_recovery_restore(recovery)
+            LOGGER.info("Network restored via Network Recovery")
+            return
 
         # Fall back to legacy method
         await self._write_network_info_legacy(network_info=network_info)
