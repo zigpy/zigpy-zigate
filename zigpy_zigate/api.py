@@ -40,6 +40,8 @@ class CommandId(enum.IntEnum):
     SEND_RAW_APS_DATA_PACKET = 0x0530
     AHI_SET_TX_POWER = 0x0806
     GET_NETWORK_KEY = 0x0054
+    NETWORK_RECOVERY_EXTRACT = 0x0600
+    NETWORK_RECOVERY_RESTORE = 0x0601
 
 
 class ResponseId(enum.IntEnum):
@@ -67,6 +69,8 @@ class ResponseId(enum.IntEnum):
     AHI_SET_TX_POWER_RSP = 0x8806
     EXTENDED_ERROR = 0x9999
     GET_NETWORK_KEY_LIST = 0x8054
+    NETWORK_RECOVERY_EXTRACT_RSP = 0x8600
+    NETWORK_RECOVERY_RESTORE_RSP = 0x8601
 
 
 class SendSecurity(t.uint8_t, enum.Enum):
@@ -145,6 +149,8 @@ RESPONSES = {
     ResponseId.AHI_SET_TX_POWER_RSP: (t.uint8_t,),
     ResponseId.EXTENDED_ERROR: (t.Status,),
     ResponseId.GET_NETWORK_KEY_LIST: (zigpy.types.KeyData,),
+    ResponseId.NETWORK_RECOVERY_EXTRACT_RSP: (t.uint8_t, t.NetworkRecovery),
+    ResponseId.NETWORK_RECOVERY_RESTORE_RSP: (t.uint8_t,),
 }
 
 COMMANDS = {
@@ -546,3 +552,28 @@ class ZiGate:
             raise CommandNotSupportedError()
 
         return rsp[0]
+
+    async def network_recovery_extract(self) -> t.NetworkRecovery:
+        """Extract network state for backup (ZiGate+ v2, firmware 3.24+)."""
+        rsp, _ = await self.command(
+            CommandId.NETWORK_RECOVERY_EXTRACT,
+            wait_response=ResponseId.NETWORK_RECOVERY_EXTRACT_RSP,
+        )
+
+        status, recovery = rsp[0], rsp[1]
+        if status != 0:
+            raise CommandNotSupportedError(f"Network recovery extract failed: {status}")
+
+        return recovery
+
+    async def network_recovery_restore(self, recovery: t.NetworkRecovery) -> None:
+        """Restore network state from backup (ZiGate+ v2, firmware 3.24+)."""
+        rsp, _ = await self.command(
+            CommandId.NETWORK_RECOVERY_RESTORE,
+            data=recovery.serialize(),
+            wait_response=ResponseId.NETWORK_RECOVERY_RESTORE_RSP,
+        )
+
+        status = rsp[0]
+        if status != 0:
+            raise CommandNotSupportedError(f"Network recovery restore failed: {status}")
