@@ -7,14 +7,14 @@ import struct
 from typing import Any
 
 import zigpy.config
-import zigpy.serial
+from zigpy.serial import SerialProtocol, create_serial_connection
 
 from . import common as c
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Gateway(zigpy.serial.SerialProtocol):
+class Gateway(SerialProtocol):
     START = b"\x01"
     END = b"\x03"
 
@@ -126,7 +126,7 @@ async def connect(device_config: dict[str, Any], api, loop=None):
         await c.async_set_zigatedin_running_mode()
 
     protocol = Gateway(api)
-    _, protocol = await zigpy.serial.create_serial_connection(
+    _, protocol = await create_serial_connection(
         loop,
         lambda: protocol,
         url=port,

@@ -1,5 +1,5 @@
 """
- Simple CLI ZiGate tool
+Simple CLI ZiGate tool
 """
 
 import argparse

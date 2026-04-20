@@ -2,8 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, call
 
 import gpiozero
 import pytest
-import serial.tools.list_ports
-import serial_asyncio_fast
+from serialx import SerialPortInfo
 import zigpy.config
 
 from zigpy_zigate import common, uart
@@ -32,7 +31,7 @@ async def test_connect(port, monkeypatch):
         assert url.startswith("/") is True
         return None, protocol
 
-    monkeypatch.setattr(serial_asyncio_fast, "create_serial_connection", mock_conn)
+    monkeypatch.setattr(uart, "create_serial_connection", mock_conn)
     monkeypatch.setattr(common, "set_pizigate_running_mode", AsyncMock())
     DEVICE_CONFIG = zigpy.config.SCHEMA_DEVICE({zigpy.config.CONF_DEVICE_PATH: port})
 
@@ -81,7 +80,7 @@ def test_data_received_incomplete_frame(gw):
 
 
 def test_data_received_runt_frame(gw):
-    data = b"\x02\x44\xC0"
+    data = b"\x02\x44\xc0"
     gw.data_received(data)
     assert gw._api.data_received.call_count == 0
 
@@ -137,16 +136,21 @@ def test_is_not_pizigate():
 
 
 def test_is_zigatedin(monkeypatch):
-    def mock_grep(*args, **kwargs):
-        device = MagicMock()
-        device.description = "ZiGate"
-        device.manufacturer = "FTDI"
-        return iter([device])
-
-    monkeypatch.setattr(serial.tools.list_ports, "grep", mock_grep)
     port = "/dev/ttyUSB1"
-    r = common.is_zigate_din(port)
-    assert r is True
+    device = SerialPortInfo(
+        device=port,
+        resolved_device=port,
+        vid=None,
+        pid=None,
+        serial_number=None,
+        manufacturer="FTDI",
+        product="ZiGate",
+        bcd_device=None,
+        interface_description=None,
+        interface_num=None,
+    )
+    monkeypatch.setattr(common, "list_serial_ports", lambda: [device])
+    assert common.is_zigate_din(port) is True
 
 
 @pytest.mark.parametrize(
@@ -154,15 +158,20 @@ def test_is_zigatedin(monkeypatch):
     ("/dev/ttyUSB1", "/dev/ttyAMA0", "/dev/serial0"),
 )
 def test_is_not_zigatedin(port, monkeypatch):
-    def mock_grep(*args, **kwargs):
-        device = MagicMock()
-        device.description = "Other"
-        device.manufacturer = "FTDI"
-        return iter([device])
-
-    monkeypatch.setattr(serial.tools.list_ports, "grep", mock_grep)
-    r = common.is_zigate_din(port)
-    assert r is False
+    device = SerialPortInfo(
+        device=port,
+        resolved_device=port,
+        vid=None,
+        pid=None,
+        serial_number=None,
+        manufacturer="FTDI",
+        product="Other",
+        bcd_device=None,
+        interface_description=None,
+        interface_num=None,
+    )
+    monkeypatch.setattr(common, "list_serial_ports", lambda: [device])
+    assert common.is_zigate_din(port) is False
 
 
 def test_is_zigate_wifi():

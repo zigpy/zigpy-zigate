@@ -5,8 +5,7 @@ import re
 import time
 
 from gpiozero import OutputDevice
-import serial
-import serial.tools.list_ports
+from serialx import SerialException, list_serial_ports
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,18 +34,19 @@ class UnclosableOutputDevice(OutputDevice):
 
 def discover_port():
     """discover zigate port"""
-    devices = list(serial.tools.list_ports.grep("ZiGate"))
+    ports = list_serial_ports()
+    devices = [p for p in ports if p.product and "ZiGate" in p.product]
     if devices:
         port = devices[0].device
         LOGGER.info("ZiGate found at %s", port)
     else:
-        devices = list(serial.tools.list_ports.grep("067b:2303|CP2102"))
+        devices = [p for p in ports if re.search(r"067b:2303|CP2102", p.product or "")]
         if devices:
             port = devices[0].device
             LOGGER.info("ZiGate probably found at %s", port)
         else:
             LOGGER.error("Unable to find ZiGate using auto mode")
-            raise serial.SerialException("Unable to find Zigate using auto mode")
+            raise SerialException("Unable to find Zigate using auto mode")
     return port
 
 
@@ -63,12 +63,10 @@ def is_zigate_din(port):
     """detect zigate din"""
     port = os.path.realpath(port)
     if re.match(r"/dev/ttyUSB\d+", port):
-        try:
-            device = next(serial.tools.list_ports.grep(port))
-            # Suppose zigate din /dev/ttyUSBx
-            return device.description == "ZiGate" and device.manufacturer == "FTDI"
-        except StopIteration:
-            pass
+        for device in list_serial_ports():
+            if device.device == port:
+                # Suppose zigate din /dev/ttyUSBx
+                return device.product == "ZiGate" and device.manufacturer == "FTDI"
     return False
 
 
