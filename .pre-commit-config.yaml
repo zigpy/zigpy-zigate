@@ -1,35 +1,34 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: debug-statements
 
   - repo: https://github.com/psf/black
-    rev: 23.10.1
+    rev: 26.3.1
     hooks:
       - id: black
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
+    rev: 7.3.0
     hooks:
       - id: flake8
-        entry: pflake8
-        additional_dependencies: 
-          - pyproject-flake8==6.1.0
-          - flake8-bugbear==23.1.20
-          - flake8-comprehensions==3.10.1
-          - flake8_2020==1.7.0
+        additional_dependencies:
+          - Flake8-pyproject
+          - flake8-bugbear==25.11.29
+          - flake8-comprehensions==3.17.0
+          - flake8_2020==1.8.1
           - mccabe==0.7.0
-          - pycodestyle==2.11.1
-          - pyflakes==3.1.0
+          - pycodestyle==2.14.0
+          - pyflakes==3.4.0
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 8.0.1
     hooks:
       - id: isort
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.6.1
+    rev: v1.20.1
     hooks:
       - id: mypy
         additional_dependencies:
@@ -37,7 +36,7 @@ repos:
           - types-setuptools
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
 

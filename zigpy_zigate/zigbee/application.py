@@ -202,7 +202,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         """Runs an energy detection scan and returns the per-channel scan results."""
 
         LOGGER.warning("Coordinator does not support energy scanning")
-        return {c: 0 for c in channels}
+        return dict.fromkeys(channels, 0)
 
     async def force_remove(self, dev):
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)

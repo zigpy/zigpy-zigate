@@ -5,7 +5,7 @@ from zigpy_zigate.api import COMMANDS, RESPONSES
 
 
 def test_deserialize():
-    extra = b"\xBE\xEF"
+    extra = b"\xbe\xef"
     data = b"\x00\x01\x00\x02"
     schema = RESPONSES[0x8000]
     result, rest = t.deserialize(data + extra, schema)
@@ -15,7 +15,7 @@ def test_deserialize():
     assert result[2] == 0x0002
     assert result[3] == extra
 
-    extra = b"\xBE\xEF"
+    extra = b"\xbe\xef"
     data = b"\x00\x00\x01\x00\x01\x01\x01\x02\x12\x34\x02\xab\xcd\x01\x00"
     schema = RESPONSES[0x8002]
     result, rest = t.deserialize(data + extra, schema)
@@ -26,7 +26,7 @@ def test_deserialize():
     assert result[4] == 0x01
     assert result[5] == t.Address(address_mode=t.AddressMode.NWK, address=t.NWK(0x1234))
     assert result[6] == t.Address(address_mode=t.AddressMode.NWK, address=t.NWK(0xABCD))
-    assert result[7] == b"\x01\x00\xBE\xEF"
+    assert result[7] == b"\x01\x00\xbe\xef"
     assert rest == b""
 
     data = b"\x00\x01\x01\x02\x12\x34\xff"

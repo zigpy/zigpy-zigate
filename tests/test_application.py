@@ -229,7 +229,7 @@ async def test_energy_scanning(app, caplog):
             channels=zigpy_t.Channels.ALL_CHANNELS, duration_exp=2, count=5
         )
 
-    assert scan_results == {c: 0 for c in zigpy_t.Channels.ALL_CHANNELS}
+    assert scan_results == dict.fromkeys(zigpy_t.Channels.ALL_CHANNELS, 0)
 
     # We never send a request when scanning
     assert len(app._api.raw_aps_data_request.mock_calls) == 0

@@ -80,7 +80,7 @@ def test_data_received_incomplete_frame(gw):
 
 
 def test_data_received_runt_frame(gw):
-    data = b"\x02\x44\xC0"
+    data = b"\x02\x44\xc0"
     gw.data_received(data)
     assert gw._api.data_received.call_count == 0
 
