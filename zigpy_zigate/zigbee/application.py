@@ -25,6 +25,9 @@ from zigpy_zigate.api import (
 LIB_VERSION = importlib.metadata.version("zigpy-zigate")
 LOGGER = logging.getLogger(__name__)
 
+# Minimum firmware version for Network Recovery support
+MIN_VERSION_NETWORK_RECOVERY = "3.24"
+
 
 class ControllerApplication(zigpy.application.ControllerApplication):
     def __init__(self, config: dict[str, Any]):
@@ -80,6 +83,88 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await dev.schedule_initialize()
 
     async def load_network_info(self, *, load_devices: bool = False):
+        # Use Network Recovery for ZiGate+ v2 (firmware 3.24+)
+        if self.version >= MIN_VERSION_NETWORK_RECOVERY:
+            recovery = await self._api.network_recovery_extract()
+            await self._load_network_info_from_recovery(recovery, load_devices)
+        else:
+            await self._load_network_info_legacy(load_devices)
+
+    async def _load_network_info_from_recovery(
+        self, recovery: t.NetworkRecovery, load_devices: bool
+    ):
+        """Load network info from Network Recovery data (ZiGate+ v2)."""
+        port = self._config[zigpy.config.CONF_DEVICE][zigpy.config.CONF_DEVICE_PATH]
+
+        if c.is_zigate_wifi(port):
+            model = "ZiGate WiFi"
+        elif await c.async_is_pizigate(port):
+            model = "PiZiGate"
+        elif await c.async_is_zigate_din(port):
+            model = "ZiGate USB-DIN"
+        else:
+            model = "ZiGate USB-TTL"
+
+        ieee, _ = zigpy.types.EUI64.deserialize(
+            t.uint64_t(recovery.ieee_address).serialize()
+        )
+
+        self.state.node_info = zigpy.state.NodeInfo(
+            nwk=zigpy.types.NWK(recovery.nwk_address),
+            ieee=ieee,
+            logical_type=zigpy.zdo.types.LogicalType.Coordinator,
+            model=model,
+            manufacturer="ZiGate",
+            version=self.version,
+        )
+
+        epid, _ = zigpy.types.ExtendedPanId.deserialize(
+            t.uint64_t(recovery.extended_pan_id).serialize()
+        )
+
+        network_key = zigpy.state.Key(
+            key=recovery.nwk_key,
+            seq=recovery.active_key_seq_num,
+            tx_counter=recovery.outgoing_frame_counter,
+        )
+
+        self.state.network_info = zigpy.state.NetworkInfo(
+            source=f"zigpy-zigate@{LIB_VERSION}",
+            extended_pan_id=epid,
+            pan_id=zigpy.types.PanId(recovery.pan_id),
+            nwk_update_id=recovery.nwk_update_id,
+            nwk_manager_id=zigpy.types.NWK(0x0000),
+            channel=recovery.channel,
+            channel_mask=zigpy.types.Channels.from_channel_list([recovery.channel]),
+            security_level=recovery.security_level,
+            network_key=network_key,
+            children=[],
+            key_table=[],
+            nwk_addresses={},
+            stack_specific={"recovery_data": recovery.serialize().hex()},
+            metadata={"zigate": {"version": self.version}},
+        )
+
+        tc_ieee, _ = zigpy.types.EUI64.deserialize(
+            t.uint64_t(recovery.trust_center_address).serialize()
+        )
+        self.state.network_info.tc_link_key.partner_ieee = tc_ieee
+
+        if not load_devices:
+            return
+
+        for device in await self._api.get_devices_list():
+            if device.power_source != 0:
+                continue
+
+            dev_ieee = zigpy.types.EUI64(device.ieee_addr)
+            self.state.network_info.children.append(dev_ieee)
+            self.state.network_info.nwk_addresses[dev_ieee] = zigpy.types.NWK(
+                device.short_addr
+            )
+
+    async def _load_network_info_legacy(self, load_devices: bool):
+        """Load network info using legacy method (older firmwares)."""
         network_state, lqi = await self._api.get_network_state()
 
         if not network_state or network_state[3] == 0 or network_state[0] == 0xFFFF:
@@ -156,6 +241,22 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         await self._api.erase_persistent_data()
 
     async def write_network_info(self, *, network_info, node_info):
+        # Try Network Recovery restore for ZiGate+ v2 (firmware 3.24+)
+        if (
+            self.version >= MIN_VERSION_NETWORK_RECOVERY
+            and "recovery_data" in network_info.stack_specific
+        ):
+            recovery_bytes = bytes.fromhex(network_info.stack_specific["recovery_data"])
+            recovery, _ = t.NetworkRecovery.deserialize(recovery_bytes)
+            await self._api.network_recovery_restore(recovery)
+            LOGGER.info("Network restored via Network Recovery")
+            return
+
+        # Fall back to legacy method
+        await self._write_network_info_legacy(network_info=network_info)
+
+    async def _write_network_info_legacy(self, *, network_info):
+        """Write network info using legacy method (older firmwares)."""
         LOGGER.warning("Setting the pan_id is not supported by ZiGate")
 
         await self.reset_network_info()

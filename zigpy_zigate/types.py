@@ -393,3 +393,36 @@ class DeviceEntryArray(tuple):
 
     def serialize(self):
         return b"".join([e.serialize() for e in self])
+
+
+class NetworkRecovery(Struct):
+    """Network Recovery data structure (72 bytes) for ZiGate+ v2 firmware 3.24+."""
+
+    _fields = [
+        # Header (4 bytes)
+        ("version", uint8_t),
+        ("reserved1", uint8_t),
+        ("reserved2", uint8_t),
+        ("reserved3", uint8_t),
+        # Network Identification (20 bytes)
+        ("extended_pan_id", uint64_t),
+        ("ieee_address", uint64_t),
+        ("pan_id", uint16_t),
+        ("nwk_address", uint16_t),
+        # Network Parameters (4 bytes)
+        ("channel", uint8_t),
+        ("nwk_update_id", uint8_t),
+        ("depth", uint8_t),
+        ("capability_info", uint8_t),
+        # Security (20 bytes)
+        ("nwk_key", zigpy.types.KeyData),
+        ("active_key_seq_num", uint8_t),
+        ("security_level", uint8_t),
+        ("reserved4", uint8_t),
+        ("reserved5", uint8_t),
+        # Frame Counters (8 bytes)
+        ("outgoing_frame_counter", uint32_t),
+        ("aps_frame_counter", uint32_t),
+        # Trust Center (8 bytes)
+        ("trust_center_address", uint64_t),
+    ]
