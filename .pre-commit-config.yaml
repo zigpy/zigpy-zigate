@@ -4,43 +4,17 @@ repos:
     hooks:
       - id: debug-statements
 
-  - repo: https://github.com/psf/black
-    rev: 26.3.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
     hooks:
-      - id: black
-
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-        additional_dependencies:
-          - Flake8-pyproject
-          - flake8-bugbear==25.11.29
-          - flake8-comprehensions==3.17.0
-          - flake8_2020==1.8.1
-          - mccabe==0.7.0
-          - pycodestyle==2.14.0
-          - pyflakes==3.4.0
-
-  - repo: https://github.com/PyCQA/isort
-    rev: 8.0.1
-    hooks:
-      - id: isort
+      - id: ruff-check
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.1
+    rev: v2.3.1
     hooks:
       - id: mypy
         additional_dependencies:
           - zigpy
           - types-setuptools
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.2
-    hooks:
-      - id: pyupgrade
-
-  - repo: https://github.com/fsouza/autoflake8
-    rev: v0.4.1
-    hooks:
-      - id: autoflake8
