@@ -35,7 +35,7 @@ ZIGATE_FLASH_END = 0x00040000
 class Command:
     def __init__(self, type_, fmt=None, raw=False):
         assert not (raw and fmt), "Raw commands cannot use built-in struct formatting"
-        LOGGER.debug("Command {} {} {}".format(type_, fmt, raw))
+        LOGGER.debug(f"Command {type_} {fmt} {raw}")
         self.type = type_
         self.raw = raw
         if fmt:
@@ -65,7 +65,7 @@ class Command:
 
 class Response:
     def __init__(self, type_, data, chksum):
-        LOGGER.debug("Response {} {} {}".format(type_, data, chksum))
+        LOGGER.debug(f"Response {type_} {data} {chksum}")
         self.type = type_
         self.data = data[1:]
         self.chksum = chksum
@@ -76,15 +76,11 @@ class Response:
         return self.status == 0
 
     def __str__(self):
-        return "Response(type=0x{:02x}, data=0x{}, checksum=0x{:02x})".format(
-            self.type,
-            self.data.hex(),
-            self.chksum,
-        )
+        return f"Response(type=0x{self.type:02x}, data=0x{self.data.hex()}, checksum=0x{self.chksum:02x})"
 
 
 def register(type_):
-    assert type_ not in _responses, "Duplicate response type 0x%02x" % type_
+    assert type_ not in _responses, f"Duplicate response type 0x{type_:02x}"
 
     def decorator(func):
         _responses[type_] = func
@@ -102,7 +98,7 @@ def prepare(type_, data):
         0,
     )
 
-    message = struct.pack("!BB%dsB" % len(data), length, type_, data, checksum)
+    message = struct.pack(f"!BB{len(data)}sB", length, type_, data, checksum)
     # print('Prepared command 0x%s' % message.hex())
     return message
 
@@ -110,20 +106,20 @@ def prepare(type_, data):
 def read_response(ser):
     length = ser.read()
     length = int.from_bytes(length, "big")
-    LOGGER.debug("read_response length {}".format(length))
+    LOGGER.debug(f"read_response length {length}")
     answer = ser.read(length)
-    LOGGER.debug("read_response answer {}".format(answer))
+    LOGGER.debug(f"read_response answer {answer}")
     return _unpack_raw_message(length, answer)
     # type_, data, chksum = struct.unpack('!B%dsB' % (length - 2), answer)
     # return {'type': type_, 'data': data, 'chksum': chksum}
 
 
 def _unpack_raw_message(length, decoded):
-    LOGGER.debug("unpack raw message {} {}".format(length, decoded))
+    LOGGER.debug(f"unpack raw message {length} {decoded}")
     if len(decoded) != length or length < 2:
-        LOGGER.exception("Unpack failed, length: %d, msg %s" % (length, decoded.hex()))
+        LOGGER.exception("Unpack failed, length: %d, msg %s", length, decoded.hex())
         return
-    type_, data, chksum = struct.unpack("!B%dsB" % (length - 2), decoded)
+    type_, data, chksum = struct.unpack(f"!B{length - 2}sB", decoded)
     return _responses.get(type_, Response)(type_, data, chksum)
 
 
@@ -134,7 +130,7 @@ def req_flash_erase():
 
 @Command(0x09, raw=True)
 def req_flash_write(addr, data):
-    msg = struct.pack("<L%ds" % len(data), addr, data)
+    msg = struct.pack(f"<L{len(data)}s", addr, data)
     return msg
 
 
@@ -185,8 +181,8 @@ class ReadFlashIDResponse(Response):
 
     def __str__(self):
         return (
-            "ReadFlashIDResponse %d (ok=%s, manufacturer_id=0x%02x, device_id=0x%02x)"
-            % (self.status, self.ok, self.manufacturer_id, self.device_id)
+            f"ReadFlashIDResponse {self.status:d} (ok={self.ok}, "
+            f"manufacturer_id=0x{self.manufacturer_id:02x}, device_id=0x{self.device_id:02x})"
         )
 
 
@@ -196,7 +192,7 @@ class ChangeBaudrateResponse(Response):
         super().__init__(*args)
 
     def __str__(self):
-        return "ChangeBaudrateResponse %d (ok=%s)" % (self.status, self.ok)
+        return f"ChangeBaudrateResponse {self.status:d} (ok={self.ok})"
 
 
 @register(0x33)
@@ -206,9 +202,7 @@ class GetChipIDResponse(Response):
         (self.chip_id,) = struct.unpack("!L", self.data)
 
     def __str__(self):
-        return "GetChipIDResponse (ok={}, chip_id=0x{:04x})".format(
-            self.ok, self.chip_id
-        )
+        return f"GetChipIDResponse (ok={self.ok}, chip_id=0x{self.chip_id:04x})"
 
 
 @register(0x37)
@@ -217,7 +211,7 @@ class EraseEEPROMResponse(Response):
         super().__init__(*args)
 
     def __str__(self):
-        return "EraseEEPROMResponse %d (ok=%s)" % (self.status, self.ok)
+        return f"EraseEEPROMResponse {self.status:d} (ok={self.ok})"
 
 
 def change_baudrate(ser, baudrate):
@@ -263,7 +257,7 @@ def get_mac(ser):
     if res.data == bytes.fromhex("ffffffffffffffff"):
         ser.write(req_ram_read(0x01001580, 8))
         res = read_response(ser)
-    return ":".join("".join(x) for x in zip(*[iter(res.data.hex())] * 2))
+    return ":".join("".join(x) for x in zip(*[iter(res.data.hex())] * 2, strict=False))
 
 
 def select_flash(ser, flash_type):
@@ -299,7 +293,7 @@ def printProgressBar(
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + "-" * (length - filledLength)
-    print("\r{} |{}| {}% {}".format(prefix, bar, percent, suffix), end=printEnd)
+    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end=printEnd)
     # Print New Line on Complete
     if iteration == total:
         print()
@@ -357,8 +351,7 @@ def write_file_to_flash(ser, filename):
             res = read_response(ser)
             if not res.ok:
                 print(
-                    "writing failed at 0x%08x, status: 0x%x, data: %s"
-                    % (cur, res.status, data.hex())
+                    f"writing failed at 0x{cur:08x}, status: 0x{res.status:x}, data: {data.hex()}"
                 )
                 raise SystemExit(1)
             printProgressBar(cur, flash_end, "Writing")
@@ -409,15 +402,13 @@ def flash(serialport="auto", write=None, save=None, erase=False, pdm_only=False)
 
 
 def upgrade_firmware(port):
-    backup_filename = "zigate_backup_{:%Y%m%d%H%M%S}.bin".format(
-        datetime.datetime.now()
-    )
+    backup_filename = f"zigate_backup_{datetime.datetime.now():%Y%m%d%H%M%S}.bin"
     flash(port, save=backup_filename)
-    print("ZiGate backup created {}".format(backup_filename))
+    print(f"ZiGate backup created {backup_filename}")
     firmware_path = download_latest()
     print("Firmware downloaded", firmware_path)
     flash(port, write=firmware_path)
-    print("ZiGate flashed with {}".format(firmware_path))
+    print(f"ZiGate flashed with {firmware_path}")
 
 
 def main():
@@ -476,7 +467,7 @@ def main():
             ser = serial.Serial(args.serialport, 38400, timeout=5)
         except serial.SerialException:
             LOGGER.exception("Could not open serial device %s", args.serialport)
-            raise SystemExit(1)
+            raise SystemExit(1) from None
 
         change_baudrate(ser, 115200)
         check_chip_id(ser)

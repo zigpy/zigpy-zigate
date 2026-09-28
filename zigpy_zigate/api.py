@@ -1,10 +1,10 @@
 import asyncio
 import binascii
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import enum
 import functools
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from zigpy.datastructures import PriorityLock
 import zigpy.exceptions
@@ -220,7 +220,7 @@ class CommandNotSupportedError(CommandError):
 
 
 class ZiGate:
-    def __init__(self, device_config: Dict[str, Any]):
+    def __init__(self, device_config: dict[str, Any]):
         self._app = None
         self._config = device_config
         self._uart = None
@@ -231,7 +231,7 @@ class ZiGate:
         self.network_state = None
 
     @classmethod
-    async def new(cls, config: Dict[str, Any], application=None) -> "ZiGate":
+    async def new(cls, config: dict[str, Any], application=None) -> "ZiGate":
         api = cls(config)
         await api.connect()
         api.set_application(application)
@@ -263,10 +263,9 @@ class ZiGate:
         cmd = ResponseId(cmd)
         data, rest = t.deserialize(data, RESPONSES[cmd])
         LOGGER.debug("Response received: %s %s %s (LQI:%s)", cmd, data, rest, lqi)
-        if cmd == ResponseId.STATUS:
-            if data[2] in self._status_awaiting:
-                fut = self._status_awaiting.pop(data[2])
-                fut.set_result((data, lqi))
+        if cmd == ResponseId.STATUS and data[2] in self._status_awaiting:
+            fut = self._status_awaiting.pop(data[2])
+            fut.set_result((data, lqi))
         if cmd in self._awaiting:
             fut = self._awaiting.pop(cmd)
             fut.set_result((data, lqi))
@@ -386,8 +385,8 @@ class ZiGate:
 
     async def version_str(self):
         version, lqi = await self.version()
-        version = "{:x}".format(version[1])
-        version = "{}.{}".format(version[0], version[1:])
+        version = f"{version[1]:x}"
+        version = f"{version[0]}.{version[1:]}"
         return version
 
     async def get_network_state(self):
@@ -418,7 +417,7 @@ class ZiGate:
     async def set_time(self):
         """set internal time"""
         timestamp = (
-            datetime.now(timezone.utc) - datetime(2000, 1, 1, tzinfo=timezone.utc)
+            datetime.now(UTC) - datetime(2000, 1, 1, tzinfo=UTC)
         ).total_seconds()
 
         data = t.serialize([int(timestamp)], COMMANDS[CommandId.SET_TIMESERVER])

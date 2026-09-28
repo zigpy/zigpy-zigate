@@ -16,7 +16,7 @@ def deserialize(data, schema):
 
 
 def serialize(data, schema):
-    return b"".join(t(v).serialize() for t, v in zip(schema, data))
+    return b"".join(t(v).serialize() for t, v in zip(schema, data, strict=False))
 
 
 class Bytes(bytes):
@@ -135,10 +135,10 @@ class EUI64(zigpy.types.EUI64):
 
 class NWK(uint16_t):
     def __repr__(self):
-        return "0x{:04x}".format(self)
+        return f"0x{self:04x}"
 
     def __str__(self):
-        return "0x{:04x}".format(self)
+        return f"0x{self:04x}"
 
 
 class AddressMode(uint8_t, enum.Enum):
@@ -286,7 +286,7 @@ class Struct:
                 if hasattr(args[0], field[0]):
                     setattr(self, field[0], getattr(args[0], field[0]))
         elif len(args) == len(self._fields):
-            for arg, field in zip(args, self._fields):
+            for arg, field in zip(args, self._fields, strict=True):
                 setattr(self, field[0], field[1](arg))
         elif kwargs:
             for k, v in kwargs.items():
@@ -308,10 +308,8 @@ class Struct:
         return r, data
 
     def __repr__(self):
-        r = "<{} ".format(self.__class__.__name__)
-        r += " ".join(
-            ["{}={}".format(f[0], getattr(self, f[0], None)) for f in self._fields]
-        )
+        r = f"<{self.__class__.__name__} "
+        r += " ".join([f"{f[0]}={getattr(self, f[0], None)}" for f in self._fields])
         r += ">"
         return r
 
