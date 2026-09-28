@@ -39,7 +39,7 @@ class Gateway(SerialProtocol):
         length = len(data)
         byte_head = struct.pack("!HH", cmd, length)
         checksum = self._checksum(byte_head, data)
-        frame = struct.pack("!HHB%ds" % length, cmd, length, checksum, data)
+        frame = struct.pack(f"!HHB{length}s", cmd, length, checksum, data)
         LOGGER.debug("Frame to send: %s", frame)
         frame = self._escape(frame)
         LOGGER.debug("Frame escaped: %s", frame)
@@ -55,7 +55,7 @@ class Gateway(SerialProtocol):
                 frame = self._buffer[startpos : endpos + 1]
                 frame = self._unescape(frame[1:-1])
                 cmd, length, checksum, f_data, lqi = struct.unpack(
-                    "!HHB%dsB" % (len(frame) - 6), frame
+                    f"!HHB{len(frame) - 6}sB", frame
                 )
                 if len(frame) - 5 != length:
                     LOGGER.warning(

@@ -314,8 +314,10 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 addr_mode=t.ZIGPY_TO_ZIGATE_ADDR_MODE[packet.dst.addr_mode, ack],
                 radius=packet.radius,
             )
-        except NoResponseError:
-            raise zigpy.exceptions.DeliveryError("ZiGate did not respond to command")
+        except NoResponseError as exc:
+            raise zigpy.exceptions.DeliveryError(
+                "ZiGate did not respond to command"
+            ) from exc
 
         self._pending[tsn] = asyncio.get_running_loop().create_future()
 
