@@ -4,32 +4,12 @@ import os.path
 import re
 import time
 
-from gpiozero import OutputDevice
 from serialx import SerialException, list_serial_ports
 
 LOGGER = logging.getLogger(__name__)
 
 GPIO_PIN0 = 17
 GPIO_PIN2 = 27
-
-
-class UnclosableOutputDevice(OutputDevice):
-    """
-    `OutputDevice` that never closes its pins. Allows for the last-written pin state to
-    be retained even after the `OutputDevice` is garbage collected.
-    """
-
-    def __init__(
-        self, pin=None, *, active_high=True, initial_value=False, pin_factory=None
-    ):
-        super().__init__(
-            pin,
-            active_high=active_high,
-            initial_value=initial_value,
-            pin_factory=pin_factory,
-        )
-        self._pin.close = lambda *args, **kwargs: None
-        self.pin_factory.close = lambda *args, **kwargs: None
 
 
 def discover_port():
@@ -76,34 +56,32 @@ def is_zigate_wifi(port):
 
 
 def set_pizigate_running_mode():
+    from . import gpio  # Linux only, so imported only when it is needed
+
     LOGGER.info("Put PiZiGate in running mode")
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
-
-    gpio2.on()
+    gpio.set_value(GPIO_PIN2, True)
     time.sleep(0.5)
 
-    gpio0.off()
+    gpio.set_value(GPIO_PIN0, False)
     time.sleep(0.5)
 
-    gpio0.on()
+    gpio.set_value(GPIO_PIN0, True)
     time.sleep(0.5)
 
 
 def set_pizigate_flashing_mode():
+    from . import gpio  # Linux only, so imported only when it is needed
+
     LOGGER.info("Put PiZiGate in flashing mode")
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
-
-    gpio2.off()
+    gpio.set_value(GPIO_PIN2, False)
     time.sleep(0.5)
 
-    gpio0.off()
+    gpio.set_value(GPIO_PIN0, False)
     time.sleep(0.5)
 
-    gpio0.on()
+    gpio.set_value(GPIO_PIN0, True)
     time.sleep(0.5)
 
 

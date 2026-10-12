@@ -1,11 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, call
 
-import gpiozero
 import pytest
 from serialx import SerialPortInfo
 import zigpy.config
 
-from zigpy_zigate import common, uart
+from zigpy_zigate import common, gpio, uart
 
 
 @pytest.fixture
@@ -21,8 +20,6 @@ def gw():
     ("/dev/null", "pizigate:/dev/ttyAMA0"),
 )
 async def test_connect(port, monkeypatch):
-    monkeypatch.setattr(gpiozero.Device, "_default_pin_factory", MagicMock())
-
     api = MagicMock()
 
     async def mock_conn(loop, protocol_factory, url, **kwargs):
@@ -32,7 +29,7 @@ async def test_connect(port, monkeypatch):
         return None, protocol
 
     monkeypatch.setattr(uart, "create_serial_connection", mock_conn)
-    monkeypatch.setattr(common, "set_pizigate_running_mode", AsyncMock())
+    monkeypatch.setattr(common, "async_set_pizigate_running_mode", AsyncMock())
     DEVICE_CONFIG = zigpy.config.SCHEMA_DEVICE({zigpy.config.CONF_DEVICE_PATH: port})
 
     await uart.connect(DEVICE_CONFIG, api)
@@ -187,7 +184,27 @@ def test_is_not_zigate_wifi():
 
 
 def test_startup_gpio_toggling(monkeypatch):
-    monkeypatch.setattr(gpiozero.Device, "_default_pin_factory", MagicMock())
+    manager = MagicMock()
+    monkeypatch.setattr(gpio, "set_value", manager.set_value)
+    monkeypatch.setattr(common.time, "sleep", manager.sleep)
 
     common.set_pizigate_running_mode()
+    assert manager.mock_calls == [
+        call.set_value(27, True),
+        call.sleep(0.5),
+        call.set_value(17, False),
+        call.sleep(0.5),
+        call.set_value(17, True),
+        call.sleep(0.5),
+    ]
+
+    manager.reset_mock()
     common.set_pizigate_flashing_mode()
+    assert manager.mock_calls == [
+        call.set_value(27, False),
+        call.sleep(0.5),
+        call.set_value(17, False),
+        call.sleep(0.5),
+        call.set_value(17, True),
+        call.sleep(0.5),
+    ]
