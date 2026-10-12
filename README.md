@@ -36,6 +36,7 @@ Note! ZiGate open source ZigBee USB and GPIO adapter hardware requires ZiGate 3.
 - To configure __usb__ ZiGate (USB TTL or DIN) port, just specify the port, example : `/dev/ttyUSB0`
     - Alternatively you could manually set port to `auto` to enable automatic usb port discovery
 - To configure __pizigate__ port, specify the port, example : `/dev/serial0` or `/dev/ttyAMA0`
+    - The PiZiGate's GPIO pins are switched through the Linux GPIO character device (`/dev/gpiochip*`, Linux 5.10 or later), so the user running zigpy-zigate needs read/write access to it (e.g. the `gpio` group on Raspberry Pi OS; in a container, pass the `/dev/gpiochip*` devices through)
 - To configure __wifi__ ZiGate, manually specify IP address and port, example : `socket://192.168.1.10:9999` 
 
 __pizigate__ does require some additional adjustements on Raspberry Pi 3/Zero, and 4:
