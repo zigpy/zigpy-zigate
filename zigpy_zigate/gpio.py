@@ -119,7 +119,8 @@ def _find_line(pin: int) -> tuple[str, int]:
                 if pin < num_lines:
                     fallback = (path, pin)
         except OSError as exc:
-            if exc.errno == errno.ENOTTY:
+            # kernels without the v2 uAPI reject its ioctls with EINVAL
+            if exc.errno in (errno.EINVAL, errno.ENOTTY):
                 errors.append(f"{path}: GPIO v2 uAPI not supported (needs Linux 5.10+)")
             else:
                 errors.append(f"{path}: {exc.strerror}")

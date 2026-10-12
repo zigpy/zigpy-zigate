@@ -292,7 +292,7 @@ def test_find_line_old_kernel(kernel, monkeypatch):
 
     def v1_only_ioctl(fd, request, arg, mutate_flag=True):
         if request == gpio.GPIO_V2_GET_LINEINFO_IOCTL:
-            raise OSError(errno.ENOTTY, os.strerror(errno.ENOTTY))
+            raise OSError(errno.EINVAL, os.strerror(errno.EINVAL))
         return ioctl(fd, request, arg, mutate_flag)
 
     monkeypatch.setattr(gpio.fcntl, "ioctl", v1_only_ioctl)
