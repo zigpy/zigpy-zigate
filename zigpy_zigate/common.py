@@ -6,8 +6,6 @@ import time
 
 from serialx import SerialException, list_serial_ports
 
-from . import gpio
-
 LOGGER = logging.getLogger(__name__)
 
 GPIO_PIN0 = 17
@@ -58,6 +56,8 @@ def is_zigate_wifi(port):
 
 
 def set_pizigate_running_mode():
+    from . import gpio  # Linux only, so imported only when it is needed
+
     LOGGER.info("Put PiZiGate in running mode")
 
     gpio.set_value(GPIO_PIN2, True)
@@ -71,6 +71,8 @@ def set_pizigate_running_mode():
 
 
 def set_pizigate_flashing_mode():
+    from . import gpio  # Linux only, so imported only when it is needed
+
     LOGGER.info("Put PiZiGate in flashing mode")
 
     gpio.set_value(GPIO_PIN2, False)

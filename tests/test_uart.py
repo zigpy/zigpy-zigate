@@ -4,7 +4,7 @@ import pytest
 from serialx import SerialPortInfo
 import zigpy.config
 
-from zigpy_zigate import common, uart
+from zigpy_zigate import common, gpio, uart
 
 
 @pytest.fixture
@@ -185,7 +185,7 @@ def test_is_not_zigate_wifi():
 
 def test_startup_gpio_toggling(monkeypatch):
     manager = MagicMock()
-    monkeypatch.setattr(common.gpio, "set_value", manager.set_value)
+    monkeypatch.setattr(gpio, "set_value", manager.set_value)
     monkeypatch.setattr(common.time, "sleep", manager.sleep)
 
     common.set_pizigate_running_mode()

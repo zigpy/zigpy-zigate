@@ -55,11 +55,18 @@ class FakeKernel:
                 len(chip.line_names),
             )
         elif request == gpio.GPIO_V2_GET_LINEINFO_IOCTL:
+            # the kernel rejects non-zero padding and invalid offsets with EINVAL
+            assert not any(arg[240:256])
             offset = gpio.LINE_INFO.unpack(arg)[2]
             name = self.chips[target].line_names[offset]
             arg[:] = gpio.LINE_INFO.pack(name.encode(), b"", offset, 0, 0)
         elif request == gpio.GPIO_V2_GET_LINE_IOCTL:
             fields = gpio.LINE_REQUEST.unpack(arg)
+            # config.padding and the request's padding must be zero
+            assert not any(arg[300:320]) and not any(arg[568:588])
+            assert 1 <= fields[7] <= 64  # num_lines
+            assert fields[3] <= 10  # config.num_attrs
+            assert fields[0] < len(self.chips[target].line_names)
             self.requests.append((target, fields))
             line_fd = self._new_fd(("line", len(self.requests) - 1))
             arg[:] = gpio.LINE_REQUEST.pack(*fields[:-1], line_fd)
@@ -151,18 +158,49 @@ def test_set_value_requests_line_once(kernel):
 
 
 def test_find_line_by_name_on_any_chip(kernel):
-    # Pi 5 on older kernels: the header is on gpiochip4, after the SoC's own chips
+    # Pi 5 on Raspberry Pi kernels 6.6+: the RP1 header chip is gpiochip0, the SoC's
+    # own chips follow and carry no GPIO<n> names
     k = kernel(
         {
-            "/dev/gpiochip0": FakeChip("gpio-brcmstb@107d508500", ["-"] * 32),
+            "/dev/gpiochip10": FakeChip("gpio-brcmstb@107d508500", ["-"] * 32),
+            "/dev/gpiochip0": FakeChip("pinctrl-rp1", pi_line_names(54)),
+            "/dev/gpiochip2": FakeChip("other", ["GPIO17"]),
+        }
+    )
+
+    assert gpio._find_line(17) == ("/dev/gpiochip0", 17)
+    assert gpio._find_line(27) == ("/dev/gpiochip0", 27)
+    assert not k.fds
+
+
+def test_find_line_sorts_chips_numerically(kernel):
+    kernel(
+        {
             "/dev/gpiochip10": FakeChip("other", ["GPIO17"]),
-            "/dev/gpiochip4": FakeChip("pinctrl-rp1", pi_line_names(54)),
+            "/dev/gpiochip4": FakeChip("other", ["-", "GPIO17"]),
+        }
+    )
+
+    assert gpio._find_line(17) == ("/dev/gpiochip4", 1)
+
+
+def test_find_line_pi5_kernel_6_1(kernel):
+    # Pi 5 on its launch kernel (6.1): the RP1 header chip is gpiochip4, after the
+    # SoC's own chips, and its lines are named after the header pins ("PIN11" is
+    # GPIO17), so only the chip label finds it
+    rp1_names = [f"PIN{n}" for n in range(54)]
+    kernel(
+        {
+            **{
+                f"/dev/gpiochip{n}": FakeChip("gpio-brcmstb@107d508500", ["-"] * 32)
+                for n in range(4)
+            },
+            "/dev/gpiochip4": FakeChip("pinctrl-rp1", rp1_names),
         }
     )
 
     assert gpio._find_line(17) == ("/dev/gpiochip4", 17)
     assert gpio._find_line(27) == ("/dev/gpiochip4", 27)
-    assert not k.fds
 
 
 def test_find_line_by_chip_label(kernel):
@@ -246,3 +284,19 @@ def test_set_value_fails(kernel, monkeypatch):
 
     with pytest.raises(gpio.GPIOError, match="Could not set GPIO17: Input/output"):
         gpio.set_value(17, False)
+
+
+def test_find_line_old_kernel(kernel, monkeypatch):
+    k = kernel({"/dev/gpiochip0": FakeChip("pinctrl-bcm2711", pi_line_names(58))})
+    ioctl = k.ioctl
+
+    def v1_only_ioctl(fd, request, arg, mutate_flag=True):
+        if request == gpio.GPIO_V2_GET_LINEINFO_IOCTL:
+            raise OSError(errno.ENOTTY, os.strerror(errno.ENOTTY))
+        return ioctl(fd, request, arg, mutate_flag)
+
+    monkeypatch.setattr(gpio.fcntl, "ioctl", v1_only_ioctl)
+
+    with pytest.raises(gpio.GPIOError, match=r"needs Linux 5\.10\+"):
+        gpio.set_value(17, True)
+    assert not k.fds

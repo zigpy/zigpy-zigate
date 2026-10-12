@@ -10,6 +10,7 @@ back to the kernel, which may stop driving the pin.
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import glob
 import logging
@@ -118,7 +119,10 @@ def _find_line(pin: int) -> tuple[str, int]:
                 if pin < num_lines:
                     fallback = (path, pin)
         except OSError as exc:
-            errors.append(f"{path}: {exc.strerror}")
+            if exc.errno == errno.ENOTTY:
+                errors.append(f"{path}: GPIO v2 uAPI not supported (needs Linux 5.10+)")
+            else:
+                errors.append(f"{path}: {exc.strerror}")
         finally:
             os.close(fd)
 
