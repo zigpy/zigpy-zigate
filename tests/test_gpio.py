@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from zigpy_zigate import gpio
@@ -111,10 +113,14 @@ def test_board_checked_before_opening_gpiomem(board, tmp_path, monkeypatch):
     gpiomem = tmp_path / "gpiomem"
     gpiomem.write_bytes(bytes(4096))
     monkeypatch.setattr(gpio, "GPIOMEM", str(gpiomem))
+    os_open = MagicMock(side_effect=AssertionError("/dev/gpiomem opened"))
+    monkeypatch.setattr(gpio.os, "open", os_open)
 
     with pytest.raises(gpio.GPIOError, match="Not a Raspberry Pi"):
         with gpio.GPIOMemory():
             pass
+
+    os_open.assert_not_called()
 
 
 def test_missing_gpiomem(board, tmp_path, monkeypatch):
