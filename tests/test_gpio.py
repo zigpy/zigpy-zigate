@@ -125,3 +125,77 @@ def test_missing_gpiomem(board, tmp_path, monkeypatch):
     with pytest.raises(gpio.GPIOError, match="Cannot open .*gpiomem"):
         with gpio.GPIOMemory():
             pass
+
+
+REG_GPFSEL1 = 0x04 // 4  # GPIO 10-19
+REG_GPFSEL2 = 0x08 // 4  # GPIO 20-29
+REG_GPSET0 = 0x1C // 4
+REG_GPCLR0 = 0x28 // 4
+
+
+@pytest.fixture
+def gpiomem(board, tmp_path, monkeypatch):
+    """A Raspberry Pi 4 with a file standing in for `/dev/gpiomem`."""
+    device_tree, _ = board
+    device_tree.write_bytes((0xB03114).to_bytes(4, "big"))
+
+    path = tmp_path / "gpiomem"
+    path.write_bytes(bytes(4096))
+    monkeypatch.setattr(gpio, "GPIOMEM", str(path))
+    return path
+
+
+def read_regs(path):
+    return memoryview(path.read_bytes()).cast("I")
+
+
+def write_reg(path, index, value):
+    data = bytearray(path.read_bytes())
+    regs = memoryview(data).cast("I")
+    regs[index] = value
+    regs.release()
+    path.write_bytes(data)
+
+
+def test_set_output_only_changes_its_pin(gpiomem):
+    # Every pin in both registers set to ALT3 (0b111)
+    write_reg(gpiomem, REG_GPFSEL1, 0x3FFFFFFF)
+    write_reg(gpiomem, REG_GPFSEL2, 0x3FFFFFFF)
+
+    with gpio.GPIOMemory() as mem:
+        mem.set_output(17)
+        mem.set_output(27)
+
+    regs = read_regs(gpiomem)
+    assert regs[REG_GPFSEL1] == 0x3FFFFFFF & ~(0b110 << 21)
+    assert regs[REG_GPFSEL2] == 0x3FFFFFFF & ~(0b110 << 21)
+
+
+def test_set_output_from_input(gpiomem):
+    with gpio.GPIOMemory() as mem:
+        mem.set_output(17)
+        mem.set_output(27)
+
+    regs = read_regs(gpiomem)
+    assert regs[REG_GPFSEL1] == 0b001 << 21
+    assert regs[REG_GPFSEL2] == 0b001 << 21
+
+
+def test_write(gpiomem):
+    with gpio.GPIOMemory() as mem:
+        mem.write(17, True)
+        assert read_regs(gpiomem)[REG_GPSET0] == 1 << 17
+
+        mem.write(27, False)
+        assert read_regs(gpiomem)[REG_GPCLR0] == 1 << 27
+
+    regs = read_regs(gpiomem)
+    assert regs[REG_GPSET0] == 1 << 17
+    assert regs[REG_GPCLR0] == 1 << 27
+
+
+def test_reopen(gpiomem):
+    # The mapping is released on exit, so it can be opened again (e.g. on reconnect)
+    for _ in range(2):
+        with gpio.GPIOMemory() as mem:
+            mem.write(17, True)

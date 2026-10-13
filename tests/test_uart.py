@@ -186,9 +186,44 @@ def test_is_not_zigate_wifi():
     assert r is False
 
 
-def test_startup_gpio_toggling(monkeypatch):
-    monkeypatch.setattr(common, "GPIOMemory", MagicMock())
-    monkeypatch.setattr(common.time, "sleep", MagicMock())
+def mock_gpio(monkeypatch):
+    calls = MagicMock()
+    gpio_memory = MagicMock()
+    gpio_memory.return_value.__enter__.return_value = calls.gpio
+    monkeypatch.setattr(common, "GPIOMemory", gpio_memory)
+    monkeypatch.setattr(common.time, "sleep", calls.sleep)
+    return calls
+
+
+def test_pizigate_running_mode(monkeypatch):
+    calls = mock_gpio(monkeypatch)
 
     common.set_pizigate_running_mode()
+
+    assert calls.mock_calls == [
+        call.gpio.set_output(17),
+        call.gpio.set_output(27),
+        call.gpio.write(27, True),
+        call.sleep(0.5),
+        call.gpio.write(17, False),
+        call.sleep(0.5),
+        call.gpio.write(17, True),
+        call.sleep(0.5),
+    ]
+
+
+def test_pizigate_flashing_mode(monkeypatch):
+    calls = mock_gpio(monkeypatch)
+
     common.set_pizigate_flashing_mode()
+
+    assert calls.mock_calls == [
+        call.gpio.set_output(17),
+        call.gpio.set_output(27),
+        call.gpio.write(27, False),
+        call.sleep(0.5),
+        call.gpio.write(17, False),
+        call.sleep(0.5),
+        call.gpio.write(17, True),
+        call.sleep(0.5),
+    ]
