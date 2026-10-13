@@ -1,6 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock, call
 
-import gpiozero
 import pytest
 from serialx import SerialPortInfo
 import zigpy.config
@@ -21,7 +20,8 @@ def gw():
     ("/dev/null", "pizigate:/dev/ttyAMA0"),
 )
 async def test_connect(port, monkeypatch):
-    monkeypatch.setattr(gpiozero.Device, "_default_pin_factory", MagicMock())
+    monkeypatch.setattr(common, "GPIOMemory", MagicMock())
+    monkeypatch.setattr(common.time, "sleep", MagicMock())
 
     api = MagicMock()
 
@@ -187,7 +187,8 @@ def test_is_not_zigate_wifi():
 
 
 def test_startup_gpio_toggling(monkeypatch):
-    monkeypatch.setattr(gpiozero.Device, "_default_pin_factory", MagicMock())
+    monkeypatch.setattr(common, "GPIOMemory", MagicMock())
+    monkeypatch.setattr(common.time, "sleep", MagicMock())
 
     common.set_pizigate_running_mode()
     common.set_pizigate_flashing_mode()
