@@ -4,32 +4,14 @@ import os.path
 import re
 import time
 
-from gpiozero import OutputDevice
 from serialx import SerialException, list_serial_ports
+
+from zigpy_zigate.gpio import GPIOMemory
 
 LOGGER = logging.getLogger(__name__)
 
 GPIO_PIN0 = 17
 GPIO_PIN2 = 27
-
-
-class UnclosableOutputDevice(OutputDevice):
-    """
-    `OutputDevice` that never closes its pins. Allows for the last-written pin state to
-    be retained even after the `OutputDevice` is garbage collected.
-    """
-
-    def __init__(
-        self, pin=None, *, active_high=True, initial_value=False, pin_factory=None
-    ):
-        super().__init__(
-            pin,
-            active_high=active_high,
-            initial_value=initial_value,
-            pin_factory=pin_factory,
-        )
-        self._pin.close = lambda *args, **kwargs: None
-        self.pin_factory.close = lambda *args, **kwargs: None
 
 
 def discover_port():
@@ -78,33 +60,35 @@ def is_zigate_wifi(port):
 def set_pizigate_running_mode():
     LOGGER.info("Put PiZiGate in running mode")
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
+    with GPIOMemory() as gpio:
+        gpio.set_output(GPIO_PIN0)
+        gpio.set_output(GPIO_PIN2)
 
-    gpio2.on()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN2, True)
+        time.sleep(0.5)
 
-    gpio0.off()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN0, False)
+        time.sleep(0.5)
 
-    gpio0.on()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN0, True)
+        time.sleep(0.5)
 
 
 def set_pizigate_flashing_mode():
     LOGGER.info("Put PiZiGate in flashing mode")
 
-    gpio0 = UnclosableOutputDevice(pin=GPIO_PIN0, initial_value=None)
-    gpio2 = UnclosableOutputDevice(pin=GPIO_PIN2, initial_value=None)
+    with GPIOMemory() as gpio:
+        gpio.set_output(GPIO_PIN0)
+        gpio.set_output(GPIO_PIN2)
 
-    gpio2.off()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN2, False)
+        time.sleep(0.5)
 
-    gpio0.off()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN0, False)
+        time.sleep(0.5)
 
-    gpio0.on()
-    time.sleep(0.5)
+        gpio.write(GPIO_PIN0, True)
+        time.sleep(0.5)
 
 
 def ftdi_set_bitmode(dev, bitmask):

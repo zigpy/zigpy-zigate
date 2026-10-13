@@ -42,6 +42,8 @@ __pizigate__ does require some additional adjustements on Raspberry Pi 3/Zero, a
 - [Raspberry Pi 3 and Raspberry Pi Zero configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-3-et-zero-w/)
 - [Raspberry Pi 4 configuration adjustements](https://zigate.fr/documentation/compatibilite-raspberry-pi-4-b/)
 
+zigpy-zigate switches the __pizigate__ between running and flashing mode with GPIO 17 and 27, through `/dev/gpiomem`. This works on the Raspberry Pi 1 to 4 (including Zero and Compute Module 1 to 4) and needs read/write access to `/dev/gpiomem` (e.g. the `gpio` group on Raspberry Pi OS, or passing `/dev/gpiomem` through to a container). The Raspberry Pi 5 is not supported.
+
 ## Flasher (ZiGate Firmware Tool)
 
 zigpy-zigate has an integrated Python "flasher" tool to flash firmware updates on your ZiGate (NXP Jennic JN5168).
