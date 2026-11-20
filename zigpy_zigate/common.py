@@ -1,13 +1,20 @@
+from __future__ import annotations
+
 import asyncio
+from collections.abc import Callable, Coroutine
 import logging
 import os.path
 import re
 import time
+from typing import Any, TypeVar, TypeVarTuple
 
 from gpiozero import OutputDevice
 from serialx import SerialException, list_serial_ports
 
 LOGGER = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
+_Ts = TypeVarTuple("_Ts")
 
 GPIO_PIN0 = 17
 GPIO_PIN2 = 27
@@ -32,7 +39,7 @@ class UnclosableOutputDevice(OutputDevice):
         self.pin_factory.close = lambda *args, **kwargs: None
 
 
-def discover_port():
+def discover_port() -> str:
     """discover zigate port"""
     ports = list_serial_ports()
     devices = [p for p in ports if p.product and "ZiGate" in p.product]
@@ -50,7 +57,7 @@ def discover_port():
     return port
 
 
-def is_pizigate(port):
+def is_pizigate(port: str) -> bool:
     """detect pizigate"""
     # Suppose pizigate on /dev/ttyAMAx or /dev/serialx
     if port.startswith("pizigate:"):
@@ -59,7 +66,7 @@ def is_pizigate(port):
     return re.match(r"/dev/(tty(S|AMA)|serial)\d+", port) is not None
 
 
-def is_zigate_din(port):
+def is_zigate_din(port: str) -> bool:
     """detect zigate din"""
     port = os.path.realpath(port)
     if re.match(r"/dev/ttyUSB\d+", port):
@@ -70,7 +77,7 @@ def is_zigate_din(port):
     return False
 
 
-def is_zigate_wifi(port):
+def is_zigate_wifi(port: str) -> bool:
     """detect zigate din"""
     return port.startswith("socket://")
 
@@ -107,7 +114,7 @@ def set_pizigate_flashing_mode():
     time.sleep(0.5)
 
 
-def ftdi_set_bitmode(dev, bitmask):
+def ftdi_set_bitmode(dev: Any, bitmask: int) -> None:
     """
     Set mode for ZiGate DIN module
     """
@@ -122,7 +129,7 @@ def ftdi_set_bitmode(dev, bitmask):
     dev.ctrl_transfer(bmRequestType, SIO_SET_BITMODE_REQUEST, wValue)
 
 
-def set_zigatedin_running_mode():
+def set_zigatedin_running_mode() -> None:
     import usb
 
     dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
@@ -136,7 +143,7 @@ def set_zigatedin_running_mode():
     time.sleep(0.5)
 
 
-def set_zigatedin_flashing_mode():
+def set_zigatedin_flashing_mode() -> None:
     import usb
 
     dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
@@ -156,13 +163,15 @@ def set_zigatedin_flashing_mode():
     time.sleep(0.5)
 
 
-def async_run_in_executor(function):
+def async_run_in_executor(
+    function: Callable[[*_Ts], _T],
+) -> Callable[[*_Ts], Coroutine[Any, Any, _T]]:
     """Decorator to make a sync function async."""
 
-    async def replacement(*args):
+    async def replacement(*args: *_Ts) -> _T:
         return await asyncio.get_running_loop().run_in_executor(None, function, *args)
 
-    replacement._sync_func = function
+    replacement._sync_func = function  # type: ignore[attr-defined]
 
     return replacement
 

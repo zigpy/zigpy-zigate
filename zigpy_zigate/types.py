@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+from collections.abc import Iterable
 import enum
+from typing import Any, ClassVar, Literal, Self
 
 import zigpy.types
 
 
-def deserialize(data, schema):
-    result = []
+def deserialize(data: bytes, schema: Iterable[Any]) -> tuple[list[Any], bytes]:
+    result: list[Any] = []
     for type_ in schema:
         # value, data = type_.deserialize(data)
         if data:
@@ -15,25 +19,27 @@ def deserialize(data, schema):
     return result, data
 
 
-def serialize(data, schema):
+def serialize(data: Iterable[Any], schema: Iterable[Any]) -> bytes:
     return b"".join(t(v).serialize() for t, v in zip(schema, data, strict=False))
 
 
 class Bytes(bytes):
-    def serialize(self):
+    def serialize(self) -> bytes:
         return self
 
     @classmethod
-    def deserialize(cls, data):
+    def deserialize(cls, data: bytes) -> tuple[Self, bytes]:
         return cls(data), b""
 
 
 class LBytes(bytes):
-    def serialize(self):
+    def serialize(self) -> bytes:
         return uint8_t(len(self)).serialize() + self
 
     @classmethod
-    def deserialize(cls, data, byteorder="big"):
+    def deserialize(
+        cls, data: bytes, byteorder: Literal["little", "big"] = "big"
+    ) -> tuple[bytes, bytes]:
         _bytes = int.from_bytes(data[:1], byteorder)
         s = data[1 : _bytes + 1]
         return s, data[_bytes + 1 :]
@@ -43,11 +49,13 @@ class int_t(int):
     _signed = True
     _size = 0
 
-    def serialize(self, byteorder="big"):
+    def serialize(self, byteorder: Literal["little", "big"] = "big") -> bytes:
         return self.to_bytes(self._size, byteorder, signed=self._signed)
 
     @classmethod
-    def deserialize(cls, data, byteorder="big"):
+    def deserialize(
+        cls, data: bytes, byteorder: Literal["little", "big"] = "big"
+    ) -> tuple[Self, bytes]:
         # Work around https://bugs.python.org/issue23640
         r = cls(int.from_bytes(data[: cls._size], byteorder, signed=cls._signed))
         data = data[cls._size :]
@@ -124,20 +132,20 @@ class uint64_t(uint_t):
 
 class EUI64(zigpy.types.EUI64):
     @classmethod
-    def deserialize(cls, data):
+    def deserialize(cls, data: bytes) -> tuple[Self, bytes]:
         r, data = super().deserialize(data)
         return cls(r[::-1]), data
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         assert self._length == len(self)
         return super().serialize()[::-1]
 
 
 class NWK(uint16_t):
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"0x{self:04x}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"0x{self:04x}"
 
 
@@ -254,13 +262,14 @@ class Status(uint8_t, enum.Enum):
     UnsupportedAttribute = 0xB0
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: object) -> Status:
         if not isinstance(value, int):
             raise ValueError(f"{value} is not a valid {cls.__name__}")
 
-        new_member = cls._member_type_.__new__(cls, value)
+        # _member_type_ is set by EnumMeta but not declared in typeshed
+        new_member: Status = cls._member_type_.__new__(cls, value)  # type: ignore[attr-defined]
         new_member._name_ = f"unknown_0x{value:02X}"
-        new_member._value_ = cls._member_type_(value)
+        new_member._value_ = cls._member_type_(value)  # type: ignore[attr-defined]
 
         return new_member
 
@@ -277,9 +286,9 @@ class LogLevel(uint8_t, enum.Enum):
 
 
 class Struct:
-    _fields = []
+    _fields: ClassVar[list[tuple[str, Any]]] = []
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if len(args) == 1 and isinstance(args[0], self.__class__):
             # copy constructor
             for field in self._fields:
@@ -292,7 +301,7 @@ class Struct:
             for k, v in kwargs.items():
                 setattr(self, k, v)
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         r = b""
         for field in self._fields:
             if hasattr(self, field[0]):
@@ -300,14 +309,14 @@ class Struct:
         return r
 
     @classmethod
-    def deserialize(cls, data):
+    def deserialize(cls, data: bytes) -> tuple[Self, bytes]:
         r = cls()
         for field_name, field_type in cls._fields:
             v, data = field_type.deserialize(data)
             setattr(r, field_name, v)
         return r, data
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         r = f"<{self.__class__.__name__} "
         r += " ".join([f"{f[0]}={getattr(self, f[0], None)}" for f in self._fields])
         r += ">"
@@ -334,16 +343,21 @@ ZIGATE_TO_ZIGPY_ADDR_MODE = {
 
 
 class Address(Struct):
+    address_mode: AddressMode
+    address: EUI64 | NWK
+
     _fields = [
         ("address_mode", AddressMode),
         ("address", EUI64),
     ]
 
-    def __eq__(self, other):
-        return other.address_mode == self.address_mode and other.address == self.address
+    def __eq__(self, other: Any) -> bool:
+        return bool(
+            other.address_mode == self.address_mode and other.address == self.address
+        )
 
     @classmethod
-    def deserialize(cls, data):
+    def deserialize(cls, data: bytes) -> tuple[Self, bytes]:
         r = cls()
         r.address_mode, data = AddressMode.deserialize(data)
 
@@ -354,18 +368,26 @@ class Address(Struct):
 
         return r, data
 
-    def to_zigpy_type(self):
+    def to_zigpy_type(self) -> tuple[zigpy.types.AddrModeAddress, bool]:
         zigpy_addr_mode, ack = ZIGATE_TO_ZIGPY_ADDR_MODE[self.address_mode]
 
         return (
             zigpy.types.AddrModeAddress(
-                addr_mode=zigpy_addr_mode, address=self.address
+                addr_mode=zigpy_addr_mode,
+                # `__post_init__` converts the address to the zigpy type
+                address=self.address,  # type: ignore[arg-type]
             ),
             ack,
         )
 
 
 class DeviceEntry(Struct):
+    id: uint8_t
+    short_addr: NWK
+    ieee_addr: EUI64
+    power_source: uint8_t
+    link_quality: uint8_t
+
     _fields = [
         ("id", uint8_t),
         ("short_addr", NWK),
@@ -375,9 +397,9 @@ class DeviceEntry(Struct):
     ]
 
 
-class DeviceEntryArray(tuple):
+class DeviceEntryArray(tuple[DeviceEntry, ...]):
     @classmethod
-    def deserialize(cls, data):
+    def deserialize(cls, data: bytes) -> tuple[Self, bytes]:
         if len(data) % 13 != 0:
             raise ValueError("Data is not an array of DeviceEntry")
 
@@ -389,5 +411,5 @@ class DeviceEntryArray(tuple):
 
         return cls(entries), data
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         return b"".join([e.serialize() for e in self])

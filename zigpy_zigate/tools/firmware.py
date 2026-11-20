@@ -9,9 +9,9 @@ URL = "https://api.github.com/repos/fairecasoimeme/ZiGate/releases"
 LOGGER = logging.getLogger("ZiGate Firmware")
 
 
-def get_releases():
+def get_releases() -> OrderedDict[str, str]:
     LOGGER.info("Searching for ZiGate firmware")
-    releases = OrderedDict()
+    releases: OrderedDict[str, str] = OrderedDict()
     r = urllib.request.urlopen(URL)
     if r.status == 200:
         for release in json.loads(r.read()):
@@ -28,7 +28,7 @@ def get_releases():
     return releases
 
 
-def download(url, dest="/tmp"):
+def download(url: str, dest: str = "/tmp") -> str | None:
     filename = url.rsplit("/", 1)[1]
     LOGGER.info("Downloading %s to %s", url, dest)
     r = urllib.request.urlopen(url)
@@ -40,15 +40,17 @@ def download(url, dest="/tmp"):
         return filename
     else:
         LOGGER.error("Error downloading %s %s", r.status, r.reason)
+        return None
 
 
-def download_latest(dest="/tmp"):
+def download_latest(dest: str = "/tmp") -> str | None:
     LOGGER.info("Download latest firmware")
     releases = get_releases()
     if releases:
         latest = list(releases.keys())[0]
         LOGGER.info("Latest is %s", latest)
         return download(releases[latest], dest)
+    return None
 
 
 if __name__ == "__main__":
