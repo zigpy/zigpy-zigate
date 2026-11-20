@@ -8,6 +8,8 @@
 # Thanks to Sander Hoentjen (tjikkun) we now have a flasher !
 # https://github.com/tjikkun/zigate-flasher
 
+from __future__ import annotations
+
 import argparse
 import datetime
 import functools
@@ -24,7 +26,7 @@ from zigpy_zigate import common as c
 from .firmware import download_latest
 
 LOGGER = logging.getLogger(__name__)
-_responses = {}
+_responses: dict[int, type[Response]] = {}
 
 ZIGATE_CHIP_ID = 0x10408686
 ZIGATE_BINARY_VERSION = bytes.fromhex("07030008")
@@ -39,7 +41,7 @@ class Command:
         self.type = type_
         self.raw = raw
         if fmt:
-            self.struct = struct.Struct(fmt)
+            self.struct: struct.Struct | None = struct.Struct(fmt)
         else:
             self.struct = None
 
@@ -50,7 +52,7 @@ class Command:
 
             if self.struct:
                 try:
-                    data = self.struct.pack(*rv)
+                    data: bytes | bytearray = self.struct.pack(*rv)
                 except TypeError:
                     data = self.struct.pack(rv)
             elif self.raw:
