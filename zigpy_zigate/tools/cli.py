@@ -6,8 +6,10 @@ import argparse
 import asyncio
 import logging
 
+import zigpy.config
+
+from zigpy_zigate import common as c
 from zigpy_zigate.api import LOGGER, CommandError, NoResponseError, ZiGate
-import zigpy_zigate.config
 
 
 async def main():
@@ -36,7 +38,10 @@ async def main():
     print("Port set to", args.port)
     if args.debug:
         logging.root.setLevel(logging.DEBUG)
-    device_config = {zigpy_zigate.config.CONF_DEVICE_PATH: args.port}
+    port = args.port
+    if port == "auto":
+        port = await c.async_run_in_executor(c.discover_port)()
+    device_config = zigpy.config.SCHEMA_DEVICE({zigpy.config.CONF_DEVICE_PATH: port})
     api = ZiGate(device_config)
     await api.connect()
     if args.command == "version":
@@ -85,7 +90,7 @@ async def main():
                 LOGGER.exception("NoResponseError")
                 await asyncio.sleep(1)
                 continue
-    api.close()
+    await api.disconnect()
 
 
 if __name__ == "__main__":
