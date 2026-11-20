@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import binascii
 from datetime import UTC, datetime
 import enum
 import functools
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 from zigpy.datastructures import PriorityLock
 import zigpy.exceptions
@@ -14,10 +16,16 @@ import zigpy_zigate.uart
 
 from . import types as t
 
+if TYPE_CHECKING:
+    from zigpy_zigate.zigbee.application import ControllerApplication
+
 LOGGER = logging.getLogger(__name__)
 
 COMMAND_TIMEOUT = 1.5
 PROBE_TIMEOUT = 3.0
+
+# A deserialized response (per the schemas in `RESPONSES`) and its LQI
+Response = tuple[list[Any], int]
 
 
 class CommandId(enum.IntEnum):
@@ -87,7 +95,7 @@ class FactoryNewRestartStatus(t.uint8_t, enum.Enum):
     Running = 6
 
 
-RESPONSES = {
+RESPONSES: dict[ResponseId, tuple[Any, ...]] = {
     ResponseId.DEVICE_ANNOUNCE: (t.NWK, t.EUI64, t.uint8_t, t.uint8_t),
     ResponseId.STATUS: (t.Status, t.uint8_t, t.uint16_t, t.Bytes),
     ResponseId.LOG: (t.LogLevel, t.Bytes),
@@ -147,7 +155,7 @@ RESPONSES = {
     ResponseId.GET_NETWORK_KEY_LIST: (zigpy.types.KeyData,),
 }
 
-COMMANDS = {
+COMMANDS: dict[CommandId, tuple[Any, ...]] = {
     CommandId.SET_RAWMODE: (t.uint8_t,),
     CommandId.SET_TIMESERVER: (t.uint32_t,),
     CommandId.SET_LED: (t.uint8_t,),
@@ -180,7 +188,10 @@ COMMANDS = {
 
 
 class AutoEnum(enum.IntEnum):
-    def _generate_next_value_(name, start, count, last_values):
+    @staticmethod
+    def _generate_next_value_(
+        name: str, start: int, count: int, last_values: list[Any]
+    ) -> int:
         return count
 
 
@@ -220,64 +231,67 @@ class CommandNotSupportedError(CommandError):
 
 
 class ZiGate:
-    def __init__(self, device_config: dict[str, Any]):
-        self._app = None
+    def __init__(self, device_config: dict[str, Any]) -> None:
+        self._app: ControllerApplication | None = None
         self._config = device_config
-        self._uart = None
-        self._awaiting = {}
-        self._status_awaiting = {}
+        self._uart: zigpy_zigate.uart.Gateway | None = None
+        self._awaiting: dict[ResponseId, asyncio.Future[Response]] = {}
+        self._status_awaiting: dict[CommandId, asyncio.Future[Response]] = {}
         self._lock = PriorityLock()
 
-        self.network_state = None
+        self.network_state: Any = None
 
     @classmethod
-    async def new(cls, config: dict[str, Any], application=None) -> "ZiGate":
+    async def new(
+        cls, config: dict[str, Any], application: ControllerApplication | None = None
+    ) -> ZiGate:
         api = cls(config)
         await api.connect()
         api.set_application(application)
         return api
 
-    async def connect(self):
+    async def connect(self) -> None:
         assert self._uart is None
         self._uart = await zigpy_zigate.uart.connect(self._config, self)
 
-    def connection_lost(self, exc: Exception) -> None:
+    def connection_lost(self, exc: BaseException | None) -> None:
         """Lost serial connection."""
         if self._app is not None:
-            self._app.connection_lost(exc)
+            # zigpy annotates `exc` as `Exception`, but it is `None` on a clean close
+            self._app.connection_lost(exc)  # type: ignore[arg-type]
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         if self._uart is not None:
             await self._uart.disconnect()
             self._uart = None
 
-    def set_application(self, app):
+    def set_application(self, app: ControllerApplication | None) -> None:
         self._app = app
 
-    def data_received(self, cmd, data, lqi):
+    def data_received(self, cmd: int, data: bytes, lqi: int) -> None:
         if cmd not in RESPONSES:
             LOGGER.warning(
                 "Received unhandled response 0x%04x: %r", cmd, binascii.hexlify(data)
             )
             return
-        cmd = ResponseId(cmd)
-        data, rest = t.deserialize(data, RESPONSES[cmd])
-        LOGGER.debug("Response received: %s %s %s (LQI:%s)", cmd, data, rest, lqi)
-        if cmd == ResponseId.STATUS and data[2] in self._status_awaiting:
-            fut = self._status_awaiting.pop(data[2])
-            fut.set_result((data, lqi))
-        if cmd in self._awaiting:
-            fut = self._awaiting.pop(cmd)
-            fut.set_result((data, lqi))
-        self.handle_callback(cmd, data, lqi)
+        rsp_id = ResponseId(cmd)
+        rsp, rest = t.deserialize(data, RESPONSES[rsp_id])
+        LOGGER.debug("Response received: %s %s %s (LQI:%s)", rsp_id, rsp, rest, lqi)
+        if rsp_id == ResponseId.STATUS and rsp[2] in self._status_awaiting:
+            fut = self._status_awaiting.pop(rsp[2])
+            fut.set_result((rsp, lqi))
+        if rsp_id in self._awaiting:
+            fut = self._awaiting.pop(rsp_id)
+            fut.set_result((rsp, lqi))
+        self.handle_callback(rsp_id, rsp, lqi)
 
-    async def wait_for_status(self, cmd):
+    async def wait_for_status(self, cmd: CommandId) -> Response:
         LOGGER.debug("Wait for status to command %s", cmd)
 
         if cmd in self._status_awaiting:
             self._status_awaiting[cmd].cancel()
 
-        status_fut = asyncio.Future()
+        status_fut: asyncio.Future[Response] = asyncio.Future()
         self._status_awaiting[cmd] = status_fut
 
         try:
@@ -287,13 +301,13 @@ class ZiGate:
                 self._status_awaiting[cmd].cancel()
                 del self._status_awaiting[cmd]
 
-    async def wait_for_response(self, wait_response):
+    async def wait_for_response(self, wait_response: ResponseId) -> Response:
         LOGGER.debug("Wait for response %s", wait_response)
 
         if wait_response in self._awaiting:
             self._awaiting[wait_response].cancel()
 
-        response_fut = asyncio.Future()
+        response_fut: asyncio.Future[Response] = asyncio.Future()
         self._awaiting[wait_response] = response_fut
 
         try:
@@ -303,7 +317,7 @@ class ZiGate:
                 self._awaiting[wait_response].cancel()
                 del self._awaiting[wait_response]
 
-    def _get_command_priority(self, cmd):
+    def _get_command_priority(self, cmd: CommandId) -> int:
         return {
             # Watchdog command is prioritized
             CommandId.SET_TIMESERVER: 9999,
@@ -311,20 +325,51 @@ class ZiGate:
             CommandId.SEND_RAW_APS_DATA_PACKET: -1,
         }.get(cmd, 0)
 
+    @overload
     async def command(
         self,
-        cmd,
-        data=b"",
-        wait_response=None,
-        wait_status=True,
-        timeout=COMMAND_TIMEOUT,
-    ):
+        cmd: CommandId,
+        data: bytes = ...,
+        *,
+        wait_response: ResponseId,
+        wait_status: bool = ...,
+        timeout: float = ...,
+    ) -> Response: ...
+
+    @overload
+    async def command(
+        self,
+        cmd: CommandId,
+        data: bytes = ...,
+        wait_response: None = ...,
+        wait_status: Literal[True] = ...,
+        timeout: float = ...,
+    ) -> Response: ...
+
+    @overload
+    async def command(
+        self,
+        cmd: CommandId,
+        data: bytes = ...,
+        wait_response: ResponseId | None = ...,
+        wait_status: bool = ...,
+        timeout: float = ...,
+    ) -> Response | None: ...
+
+    async def command(
+        self,
+        cmd: CommandId,
+        data: bytes = b"",
+        wait_response: ResponseId | None = None,
+        wait_status: bool = True,
+        timeout: float = COMMAND_TIMEOUT,
+    ) -> Response | None:
         async with self._lock(priority=self._get_command_priority(cmd)):
             tries = 3
 
-            tasks = []
-            status_task = None
-            response_task = None
+            tasks: list[asyncio.Task[Response]] = []
+            status_task: asyncio.Task[Response] | None = None
+            response_task: asyncio.Task[Response] | None = None
 
             LOGGER.debug(
                 "Sending %s (%s), waiting for status: %s, waiting for response: %s",
@@ -361,16 +406,21 @@ class ZiGate:
                         raise NoResponseError()
 
                     if wait_response and response_task in done:
+                        assert response_task is not None
                         if wait_status and status_task in pending:
                             continue
                         elif wait_status:
+                            assert status_task is not None
                             await status_task
 
                         return await response_task
                     elif wait_status and status_task in done:
+                        assert status_task is not None
                         return await status_task
                     elif not wait_response and not wait_status:
-                        return
+                        return None
+
+                return None
             finally:
                 for task in tasks:
                     if not task.done():
@@ -378,31 +428,31 @@ class ZiGate:
 
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def version(self):
+    async def version(self) -> Response:
         return await self.command(
             CommandId.GET_VERSION, wait_response=ResponseId.VERSION_LIST
         )
 
-    async def version_str(self):
-        version, lqi = await self.version()
-        version = f"{version[1]:x}"
+    async def version_str(self) -> str:
+        rsp, lqi = await self.version()
+        version = f"{rsp[1]:x}"
         version = f"{version[0]}.{version[1:]}"
         return version
 
-    async def get_network_state(self):
+    async def get_network_state(self) -> Response:
         return await self.command(
             CommandId.NETWORK_STATE_REQ, wait_response=ResponseId.NETWORK_STATE_RSP
         )
 
-    async def set_raw_mode(self, enable=True):
+    async def set_raw_mode(self, enable: bool = True) -> None:
         data = t.serialize([enable], COMMANDS[CommandId.SET_RAWMODE])
         await self.command(CommandId.SET_RAWMODE, data)
 
-    async def reset(self, *, wait=True):
+    async def reset(self, *, wait: bool = True) -> None:
         wait_response = ResponseId.NODE_NON_FACTORY_NEW_RESTART if wait else None
         await self.command(CommandId.RESET, wait_response=wait_response)
 
-    async def erase_persistent_data(self):
+    async def erase_persistent_data(self) -> None:
         await self.command(
             CommandId.ERASE_PERSISTENT_DATA,
             wait_status=False,
@@ -414,7 +464,7 @@ class ZiGate:
             CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART
         )
 
-    async def set_time(self):
+    async def set_time(self) -> None:
         """set internal time"""
         timestamp = (
             datetime.now(UTC) - datetime(2000, 1, 1, tzinfo=UTC)
@@ -423,23 +473,23 @@ class ZiGate:
         data = t.serialize([int(timestamp)], COMMANDS[CommandId.SET_TIMESERVER])
         await self.command(CommandId.SET_TIMESERVER, data)
 
-    async def get_time_server(self):
+    async def get_time_server(self) -> datetime:
         timestamp, lqi = await self.command(
             CommandId.GET_TIMESERVER, wait_response=ResponseId.GET_TIMESERVER_LIST
         )
         dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
         return dt
 
-    async def set_led(self, enable=True):
+    async def set_led(self, enable: int = True) -> None:
         data = t.serialize([enable], COMMANDS[CommandId.SET_LED])
         await self.command(CommandId.SET_LED, data)
 
-    async def set_certification(self, typ="CE"):
+    async def set_certification(self, typ: str = "CE") -> None:
         cert = {"CE": 1, "FCC": 2}[typ]
         data = t.serialize([cert], COMMANDS[CommandId.SET_CE_FCC])
         await self.command(CommandId.SET_CE_FCC, data)
 
-    async def management_network_request(self):
+    async def management_network_request(self) -> Response:
         data = t.serialize(
             [0x0000, 0x07FFF800, 0xFF, 5, 0xFF, 0x0000],
             COMMANDS[CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST],
@@ -448,20 +498,20 @@ class ZiGate:
             CommandId.MANAGEMENT_NETWORK_UPDATE_REQUEST, data
         )  # , wait_response=0x804a, timeout=10)
 
-    async def set_tx_power(self, power=63):
+    async def set_tx_power(self, power: int = 63) -> int:
         if power > 63:
             power = 63
         if power < 0:
             power = 0
         data = t.serialize([power], COMMANDS[CommandId.AHI_SET_TX_POWER])
-        power, lqi = await self.command(
+        rsp, lqi = await self.command(
             CommandId.AHI_SET_TX_POWER,
             data,
             wait_response=CommandId.AHI_SET_TX_POWER_RSP,
         )
-        return power[0]
+        return cast(int, rsp[0])
 
-    async def set_channel(self, channels=None):
+    async def set_channel(self, channels: int | list[int] | None = None) -> None:
         channels = channels or [11, 14, 15, 19, 20, 24, 25, 26]
         if not isinstance(channels, list):
             channels = [channels]
@@ -469,29 +519,31 @@ class ZiGate:
         data = t.serialize([mask], COMMANDS[CommandId.SET_CHANNELMASK])
         await self.command(CommandId.SET_CHANNELMASK, data)
 
-    async def set_extended_panid(self, extended_pan_id):
+    async def set_extended_panid(self, extended_pan_id: int) -> None:
         data = t.serialize([extended_pan_id], COMMANDS[CommandId.SET_EXT_PANID])
         await self.command(CommandId.SET_EXT_PANID, data)
 
-    async def get_devices_list(self):
+    async def get_devices_list(self) -> list[t.DeviceEntry]:
         (entries,), lqi = await self.command(
             CommandId.GET_DEVICES_LIST, wait_response=ResponseId.GET_DEVICES_LIST_RSP
         )
 
         return list(entries or [])
 
-    async def permit_join(self, duration=60):
+    async def permit_join(self, duration: int = 60) -> Response:
         data = t.serialize(
             [0x0000, duration, 1], COMMANDS[CommandId.PERMIT_JOINING_REQUEST]
         )
         return await self.command(CommandId.PERMIT_JOINING_REQUEST, data)
 
-    async def start_network(self):
+    async def start_network(self) -> Response:
         return await self.command(
             CommandId.START_NETWORK, wait_response=ResponseId.NETWORK_JOINED_FORMED
         )
 
-    async def remove_device(self, zigate_ieee, ieee):
+    async def remove_device(
+        self, zigate_ieee: zigpy.types.EUI64, ieee: zigpy.types.EUI64
+    ) -> Response:
         data = t.serialize(
             [zigate_ieee, ieee], COMMANDS[CommandId.NETWORK_REMOVE_DEVICE]
         )
@@ -499,16 +551,16 @@ class ZiGate:
 
     async def raw_aps_data_request(
         self,
-        addr,
-        src_ep,
-        dst_ep,
-        profile,
-        cluster,
-        payload,
-        addr_mode=t.AddressMode.NWK,
-        security=SendSecurity.NETWORK,
-        radius=0,
-    ):
+        addr: Any,
+        src_ep: int,
+        dst_ep: int,
+        profile: int,
+        cluster: int,
+        payload: bytes,
+        addr_mode: t.AddressMode = t.AddressMode.NWK,
+        security: SendSecurity = SendSecurity.NETWORK,
+        radius: int = 0,
+    ) -> Response:
         """
         Send raw APS Data request
         """
@@ -528,7 +580,7 @@ class ZiGate:
         )
         return await self.command(CommandId.SEND_RAW_APS_DATA_PACKET, data)
 
-    def handle_callback(self, *args):
+    def handle_callback(self, *args: Any) -> None:
         """run application callback handler"""
         if self._app:
             try:
@@ -536,7 +588,7 @@ class ZiGate:
             except Exception as e:
                 LOGGER.exception("Exception running handler", exc_info=e)
 
-    async def get_network_key(self):
+    async def get_network_key(self) -> zigpy.types.KeyData:
         rsp, _ = await self.command(
             CommandId.GET_NETWORK_KEY, wait_response=ResponseId.GET_NETWORK_KEY_LIST
         )
@@ -544,4 +596,4 @@ class ZiGate:
         if rsp[0] == t.Status.UnhandledCommand:
             raise CommandNotSupportedError()
 
-        return rsp[0]
+        return cast(zigpy.types.KeyData, rsp[0])

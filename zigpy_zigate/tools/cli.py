@@ -10,7 +10,7 @@ from zigpy_zigate.api import LOGGER, CommandError, NoResponseError, ZiGate
 import zigpy_zigate.config
 
 
-async def main():
+async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument(

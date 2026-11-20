@@ -9,9 +9,11 @@ import zigpy.application
 import zigpy.config
 import zigpy.device
 import zigpy.exceptions
+import zigpy.state
 import zigpy.types
 import zigpy.util
 import zigpy.zdo
+import zigpy.zdo.types
 
 from zigpy_zigate import common as c, types as t
 from zigpy_zigate.api import (
@@ -27,19 +29,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ControllerApplication(zigpy.application.ControllerApplication):
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self._api: ZiGate | None = None
 
-        self._pending = {}
-        self._pending_join = []
+        self._pending: dict[int, asyncio.Future[Any]] = {}
+        self._pending_join: list[t.NWK] = []
 
         self.version: str = ""
 
-    async def _watchdog_feed(self):
+    async def _watchdog_feed(self) -> None:
+        assert self._api is not None
         await self._api.set_time()
 
-    async def connect(self):
+    async def connect(self) -> None:
         api = await ZiGate.new(self._config[zigpy.config.CONF_DEVICE], self)
 
         try:
@@ -61,7 +64,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 "Old ZiGate firmware detected, you should upgrade to 3.21 or newer"
             )
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         # TODO: how do you stop the network? Is it possible?
         if self._api is not None:
             try:
@@ -72,14 +75,18 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 await self._api.disconnect()
                 self._api = None
 
-    async def start_network(self):
+    async def start_network(self) -> None:
         # TODO: how do you start the network? Is it always automatically started?
         dev = self.add_device(
             ieee=self.state.node_info.ieee, nwk=self.state.node_info.nwk
         )
-        await dev.schedule_initialize()
+        init_task = dev.schedule_initialize()
+        # `add_device` creates a new, uninitialized device, so a task is always scheduled
+        assert init_task is not None
+        await init_task
 
-    async def load_network_info(self, *, load_devices: bool = False):
+    async def load_network_info(self, *, load_devices: bool = False) -> None:
+        assert self._api is not None
         network_state, lqi = await self._api.get_network_state()
 
         if not network_state or network_state[3] == 0 or network_state[0] == 0xFFFF:
@@ -119,11 +126,14 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             source=f"zigpy-zigate@{LIB_VERSION}",
             extended_pan_id=epid,
             pan_id=zigpy.types.PanId(network_state[2]),
-            nwk_update_id=0,
+            nwk_update_id=zigpy.types.uint8_t(0),
             nwk_manager_id=zigpy.types.NWK(0x0000),
             channel=network_state[4],
-            channel_mask=zigpy.types.Channels.from_channel_list([network_state[4]]),
-            security_level=5,
+            # zigpy annotates the `cls` of this classmethod as an instance
+            channel_mask=zigpy.types.Channels.from_channel_list(  # type: ignore[misc]
+                [network_state[4]]
+            ),
+            security_level=zigpy.types.uint8_t(5),
             network_key=network_key,
             # tc_link_key=zigpy.state.Key(),
             children=[],
@@ -152,13 +162,20 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 device.short_addr
             )
 
-    async def reset_network_info(self):
+    async def reset_network_info(self) -> None:
+        assert self._api is not None
         await self._api.erase_persistent_data()
 
-    async def write_network_info(self, *, network_info, node_info):
+    async def write_network_info(
+        self,
+        *,
+        network_info: zigpy.state.NetworkInfo,
+        node_info: zigpy.state.NodeInfo,
+    ) -> None:
         LOGGER.warning("Setting the pan_id is not supported by ZiGate")
 
         await self.reset_network_info()
+        assert self._api is not None
         await self._api.set_channel(network_info.channel)
 
         epid, _ = zigpy.types.uint64_t.deserialize(
@@ -187,13 +204,19 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 if attempt == 2:
                     raise zigpy.exceptions.FormationFailure() from e
 
-    async def permit_with_link_key(self, node, link_key, time_s=60):
+    async def permit_with_link_key(
+        self,
+        node: zigpy.types.EUI64,
+        link_key: zigpy.types.KeyData,
+        time_s: int = 60,
+    ) -> None:
         LOGGER.warning("ZiGate does not support joins with link keys")
 
     async def _move_network_to_channel(
-        self, new_channel: int, *, new_nwk_update_id: int
+        self, new_channel: int, new_nwk_update_id: int
     ) -> None:
         """Moves the network to a new channel."""
+        assert self._api is not None
         await self._api.set_channel(new_channel)
 
     async def energy_scan(
@@ -204,24 +227,26 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         LOGGER.warning("Coordinator does not support energy scanning")
         return dict.fromkeys(channels, 0)
 
-    async def force_remove(self, dev):
+    async def force_remove(self, dev: zigpy.device.Device) -> None:
+        assert self._api is not None
         await self._api.remove_device(self.state.node_info.ieee, dev.ieee)
 
-    async def add_endpoint(self, descriptor):
+    async def add_endpoint(self, descriptor: zigpy.zdo.types.SimpleDescriptor) -> None:
         # ZiGate does not support adding new endpoints
         pass
 
-    def zigate_callback_handler(self, msg, response, lqi):
+    def zigate_callback_handler(
+        self, msg: ResponseId, response: list[Any], lqi: int
+    ) -> None:
         LOGGER.debug("zigate_callback_handler %s %s", msg, response)
 
         if msg == ResponseId.LEAVE_INDICATION:
-            nwk = 0
             ieee = zigpy.types.EUI64(response[0])
-            self.handle_leave(nwk, ieee)
+            self.handle_leave(zigpy.types.NWK(0x0000), ieee)
         elif msg == ResponseId.DEVICE_ANNOUNCE:
             nwk = response[0]
             ieee = zigpy.types.EUI64(response[1])
-            parent_nwk = 0
+            parent_nwk = zigpy.types.NWK(0x0000)
             self.handle_join(nwk, ieee, parent_nwk)
             # Temporary disable two stages pairing due to firmware bug
             # rejoin = response[3]
@@ -253,7 +278,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 profile_id=profile_id,
                 cluster_id=cluster_id,
                 data=zigpy.types.SerializableBytes(payload),
-                lqi=lqi,
+                lqi=zigpy.types.uint8_t(lqi),
                 rssi=None,
             )
 
@@ -280,7 +305,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         elif msg == ResponseId.EXTENDED_ERROR:
             LOGGER.warning("Extended error code %s", response[0])
 
-    def _handle_frame_failure(self, message_tag, status):
+    def _handle_frame_failure(self, message_tag: int, status: t.Status) -> None:
         try:
             send_fut = self._pending.pop(message_tag)
             send_fut.set_result(status)
@@ -291,7 +316,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
                 "Invalid state on future - probably duplicate response: %s", exc
             )
 
-    async def send_packet(self, packet):
+    async def send_packet(self, packet: zigpy.types.ZigbeePacket) -> None:
         LOGGER.debug("Sending packet %r", packet)
 
         # Firmwares 3.1d and below allow a couple of _NO_ACK packets to send but all
@@ -301,6 +326,8 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             or self.version <= "3.1d"
         )
 
+        assert self._api is not None
+        assert packet.dst is not None
         try:
             (status, tsn, packet_type, _), _ = await self._api.raw_aps_data_request(
                 addr=packet.dst.address,
@@ -341,8 +368,9 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         #     self._pending.pop(tsn)
         # return v, "Message sent"
 
-    async def permit_ncp(self, time_s=60):
+    async def permit_ncp(self, time_s: int = 60) -> None:
         assert 0 <= time_s <= 254
+        assert self._api is not None
         status, lqi = await self._api.permit_join(time_s)
         if status[0] != t.Status.Success:
             await self._api.reset()
