@@ -1,6 +1,6 @@
 import asyncio
 import binascii
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import enum
 import functools
 import logging
@@ -428,7 +428,7 @@ class ZiGate:
         timestamp, lqi = await self.command(
             CommandId.GET_TIMESERVER, wait_response=ResponseId.GET_TIMESERVER_LIST
         )
-        dt = datetime.datetime(2000, 1, 1) + datetime.timedelta(seconds=timestamp[0])
+        dt = datetime(2000, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=timestamp[0])
         return dt
 
     async def set_led(self, enable=True):
@@ -458,7 +458,7 @@ class ZiGate:
         power, lqi = await self.command(
             CommandId.AHI_SET_TX_POWER,
             data,
-            wait_response=CommandId.AHI_SET_TX_POWER_RSP,
+            wait_response=ResponseId.AHI_SET_TX_POWER_RSP,
         )
         return power[0]
 

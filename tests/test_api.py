@@ -1,10 +1,11 @@
 import asyncio
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch, sentinel
 
 import pytest
 import zigpy.config as config
 
-from zigpy_zigate import api as zigate_api
+from zigpy_zigate import api as zigate_api, types as t
 import zigpy_zigate.uart
 
 DEVICE_CONFIG = config.SCHEMA_DEVICE({config.CONF_DEVICE_PATH: "/dev/null"})
@@ -65,3 +66,24 @@ async def test_api_command(mock_command, api):
     except zigate_api.NoResponseError:
         pass
     assert mock_command.call_count == 3
+
+
+async def test_get_time_server(api):
+    api.command = AsyncMock(return_value=([t.uint32_t(86400 + 3600)], 255))
+
+    assert await api.get_time_server() == datetime(2000, 1, 2, 1, tzinfo=timezone.utc)
+    api.command.assert_awaited_once_with(
+        zigate_api.CommandId.GET_TIMESERVER,
+        wait_response=zigate_api.ResponseId.GET_TIMESERVER_LIST,
+    )
+
+
+async def test_set_tx_power(api):
+    api.command = AsyncMock(return_value=([t.uint8_t(40)], 255))
+
+    assert await api.set_tx_power(100) == 40
+    api.command.assert_awaited_once_with(
+        zigate_api.CommandId.AHI_SET_TX_POWER,
+        t.uint8_t(63).serialize(),
+        wait_response=zigate_api.ResponseId.AHI_SET_TX_POWER_RSP,
+    )

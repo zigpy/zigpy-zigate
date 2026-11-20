@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
@@ -243,3 +244,15 @@ async def test_channel_migration(app, caplog):
     await app._move_network_to_channel(17, new_nwk_update_id=2)
 
     assert app._api.set_channel.mock_calls == [call(17)]
+
+
+async def test_handle_frame_failure_duplicate(app, caplog):
+    fut = asyncio.get_running_loop().create_future()
+    fut.set_result(t.Status.NoAck)
+    app._pending[0x12] = fut
+
+    with caplog.at_level(logging.DEBUG):
+        app._handle_frame_failure(0x12, t.Status.NoAck)
+
+    assert 0x12 not in app._pending
+    assert "probably duplicate response" in caplog.text

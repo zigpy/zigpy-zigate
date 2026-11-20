@@ -286,7 +286,7 @@ class ControllerApplication(zigpy.application.ControllerApplication):
             send_fut.set_result(status)
         except KeyError:
             LOGGER.warning("Unexpected message send failure")
-        except asyncio.futures.InvalidStateError as exc:
+        except asyncio.InvalidStateError as exc:
             LOGGER.debug(
                 "Invalid state on future - probably duplicate response: %s", exc
             )
