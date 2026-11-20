@@ -352,14 +352,15 @@ class ZiGate:
                         raise CommandError("API is not running")
 
                     tries -= 1
-                    self._uart.send(cmd, data)
+
+                    # Once the status confirms the command, only wait for the response
+                    if status_task is None or not status_task.done():
+                        self._uart.send(cmd, data)
 
                     done, pending = await asyncio.wait(tasks, timeout=timeout)
 
                     if wait_status and tries == 0 and status_task in pending:
                         raise NoStatusError()
-                    elif wait_response and tries == 0 and response_task in pending:
-                        raise NoResponseError()
 
                     if wait_response and response_task in done:
                         if wait_status and status_task in pending:
@@ -369,9 +370,24 @@ class ZiGate:
 
                         return await response_task
                     elif wait_status and status_task in done:
-                        return await status_task
+                        status = await status_task
+
+                        # A successful status means the response is still coming, so
+                        # wait for it (`asyncio.wait` waits for all tasks or the timeout,
+                        # so this doesn't spin). Any other status is returned so callers
+                        # can tell why the response isn't coming.
+                        if wait_response and status[0][0] == t.Status.Success:
+                            if tries == 0:
+                                raise NoResponseError()
+
+                            continue
+
+                        return status
                     elif not wait_response and not wait_status:
                         return
+
+                    if wait_response and tries == 0:
+                        raise NoResponseError()
             finally:
                 for task in tasks:
                     if not task.done():
@@ -400,8 +416,24 @@ class ZiGate:
         await self.command(CommandId.SET_RAWMODE, data)
 
     async def reset(self, *, wait=True):
-        wait_response = ResponseId.NODE_NON_FACTORY_NEW_RESTART if wait else None
-        await self.command(CommandId.RESET, wait_response=wait_response)
+        if not wait:
+            await self.command(CommandId.RESET)
+            return
+
+        await self._reset_and_wait(ResponseId.NODE_NON_FACTORY_NEW_RESTART)
+
+    async def _reset_and_wait(self, restart):
+        """Reset and wait for the restart message, if it comes.
+
+        Which restart message the firmware sends depends on its state (factory new or
+        not), so a missing one is not an error.
+        """
+        try:
+            await self.command(CommandId.RESET, wait_response=restart)
+        except NoStatusError:
+            raise
+        except NoResponseError:
+            LOGGER.debug("No %s message after reset", restart.name)
 
     async def erase_persistent_data(self):
         await self.command(
@@ -411,9 +443,7 @@ class ZiGate:
             timeout=10,
         )
         await asyncio.sleep(1)
-        await self.command(
-            CommandId.RESET, wait_response=ResponseId.NODE_FACTORY_NEW_RESTART
-        )
+        await self._reset_and_wait(ResponseId.NODE_FACTORY_NEW_RESTART)
 
     async def set_time(self):
         """set internal time"""
@@ -544,5 +574,7 @@ class ZiGate:
 
         if rsp[0] == t.Status.UnhandledCommand:
             raise CommandNotSupportedError()
+        elif isinstance(rsp[0], t.Status):
+            raise CommandError(f"Failed to read the network key: {rsp[0]!r}")
 
         return rsp[0]

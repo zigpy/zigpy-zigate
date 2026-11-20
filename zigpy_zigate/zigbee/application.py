@@ -18,6 +18,7 @@ from zigpy_zigate.api import (
     PDM_EVENT,
     CommandNotSupportedError,
     NoResponseError,
+    NoStatusError,
     ResponseId,
     ZiGate,
 )
@@ -166,18 +167,26 @@ class ControllerApplication(zigpy.application.ControllerApplication):
         )
         await self._api.set_extended_panid(epid)
 
-        network_formed, lqi = await self._api.start_network()
+        try:
+            network_formed, lqi = await self._api.start_network()
+        except NoStatusError:
+            raise
+        except NoResponseError:
+            # The status accepted the command, but formation can take longer than the
+            # command waits for its confirmation: check the network state below
+            LOGGER.warning("Starting network got no confirmation yet, wait...")
+        else:
+            if network_formed[0] not in (
+                t.Status.Success,
+                t.Status.IncorrectParams,
+                t.Status.Busy,
+            ):
+                raise zigpy.exceptions.FormationFailure(
+                    f"Unexpected error starting network: {network_formed!r}"
+                )
 
-        if network_formed[0] not in (
-            t.Status.Success,
-            t.Status.IncorrectParams,
-            t.Status.Busy,
-        ):
-            raise zigpy.exceptions.FormationFailure(
-                f"Unexpected error starting network: {network_formed!r}"
-            )
+            LOGGER.warning("Starting network got status %s, wait...", network_formed[0])
 
-        LOGGER.warning("Starting network got status %s, wait...", network_formed[0])
         for attempt in range(3):
             await asyncio.sleep(1)
 

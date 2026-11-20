@@ -1,9 +1,12 @@
+import asyncio
+import functools
 import logging
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 import zigpy.config as config
 import zigpy.exceptions
+import zigpy.state
 import zigpy.types as zigpy_t
 
 import zigpy_zigate.api
@@ -243,3 +246,90 @@ async def test_channel_migration(app, caplog):
     await app._move_network_to_channel(17, new_nwk_update_id=2)
 
     assert app._api.set_channel.mock_calls == [call(17)]
+
+
+@pytest.mark.asyncio
+async def test_form_network_no_confirmation(app):
+    app._api.erase_persistent_data = AsyncMock()
+    app._api.set_channel = AsyncMock()
+    app._api.set_extended_panid = AsyncMock()
+    app._api.start_network = AsyncMock(side_effect=zigpy_zigate.api.NoResponseError())
+    app._api.get_network_state = AsyncMock(
+        return_value=[
+            [
+                0x0000,
+                t.EUI64([0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01]),
+                0x1234,
+                0x1234ABCDEF012345,
+                0x11,
+            ],
+            0,
+        ]
+    )
+
+    # The network state is checked even without the formation confirmation
+    await app.form_network()
+    assert app.state.network_info.pan_id == 0x1234
+
+
+@pytest.mark.asyncio
+async def test_form_network_no_status(app):
+    app._api.erase_persistent_data = AsyncMock()
+    app._api.set_channel = AsyncMock()
+    app._api.set_extended_panid = AsyncMock()
+    app._api.start_network = AsyncMock(side_effect=zigpy_zigate.api.NoStatusError())
+
+    with pytest.raises(zigpy_zigate.api.NoStatusError):
+        await app.form_network()
+
+
+@pytest.mark.asyncio
+async def test_permit_ncp_failed_status_resets(app):
+    app._api.permit_join = AsyncMock(return_value=([t.Status.Busy], 255))
+    app._api.reset = AsyncMock()
+
+    await app.permit_ncp(60)
+
+    app._api.reset.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_form_network_failed_status_in_last_wait(app):
+    api = zigpy_zigate.api.ZiGate(APP_CONFIG[config.CONF_DEVICE])
+    api._uart = MagicMock()
+    api.command = functools.partial(api.command, timeout=0.1)
+    api.erase_persistent_data = AsyncMock()
+    api.set_channel = AsyncMock()
+    api.set_extended_panid = AsyncMock()
+    app._api = api
+    app.load_network_info = AsyncMock()
+
+    status = (
+        t.Status.CommandFailed.serialize()
+        + b"\x01"
+        + t.uint16_t(zigpy_zigate.api.CommandId.START_NETWORK).serialize()
+    )
+    loop = asyncio.get_running_loop()
+
+    def send(cmd, data):
+        # No status for the first two sends, the failed status during the last wait
+        if api._uart.send.call_count == 3:
+            loop.call_soon(
+                api.data_received, zigpy_zigate.api.ResponseId.STATUS, status, 255
+            )
+
+    api._uart.send.side_effect = send
+
+    # The failed status is checked: formation fails without polling the network state
+    with pytest.raises(zigpy.exceptions.FormationFailure, match="Unexpected error"):
+        await app.write_network_info(
+            network_info=zigpy.state.NetworkInfo(
+                extended_pan_id=zigpy_t.ExtendedPanId.convert(
+                    "12:34:ab:cd:ef:01:23:45"
+                ),
+                channel=15,
+            ),
+            node_info=zigpy.state.NodeInfo(),
+        )
+
+    app.load_network_info.assert_not_called()
